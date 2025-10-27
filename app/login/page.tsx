@@ -1,7 +1,7 @@
 import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/login-form";
 
-export default function Page() {
+export default function LoginPage() {
   return (
     <AuthShell
       title="Sign in"
@@ -11,3 +11,4 @@ export default function Page() {
     </AuthShell>
   );
 }
+
