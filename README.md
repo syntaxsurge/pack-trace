@@ -99,7 +99,7 @@ timeline.entries.forEach((entry) => {
    - Optional integrations: Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`) and Africa's Talking (`AT_API_KEY`, `AT_USERNAME`).
 
 3. **Apply database schema**
-   - Run the SQL in `supabase/migrations/000_init.sql` against your Supabase project (`supabase db push` or Supabase Studio SQL editor).
+   - Run the SQL migrations under `supabase/migrations` (`000_init.sql`, `001_add_product_name_to_batches.sql`, etc.) against your Supabase project (`supabase db push` or Supabase Studio SQL editor).
 
 4. **Start the dev server**
    ```bash
@@ -124,6 +124,13 @@ timeline.entries.forEach((entry) => {
 - Stats cards summarise batch, event, and active receipt counts.
 - Facility profile section surfaces GS1 prefix, type, and onboarding timestamp.
 - Recent batches and custody events lists pull live data subject to RLS filters.
+- Quick links point operators toward `/batches/new` when no inventory exists yet.
+
+## Batch Labeling
+
+- `/batches/new` collects product name, GTIN, lot, expiry, and quantity, validating inputs with `lib/labels/gs1`.
+- Live previews render GS1 DataMatrix barcodes via `bwip-js/browser` with download and print actions for production labels.
+- Successful submissions persist GTIN-14, lot, expiry, quantity, human-readable label text, and product name to Supabase while scoping ownership to the operator’s facility.
 
 ## Scripts
 

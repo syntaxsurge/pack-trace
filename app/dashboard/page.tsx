@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,17 @@ type Facility = {
   country: string | null;
   gs1_company_prefix: string | null;
   created_at: string;
+};
+
+type BatchSummary = {
+  id: string;
+  product_name: string | null;
+  gtin: string;
+  lot: string;
+  expiry: string;
+  qty: number;
+  created_at: string;
+  current_owner_facility_id: string | null;
 };
 
 function formatDate(value: string | null | undefined) {
@@ -57,7 +69,7 @@ export default async function DashboardPage() {
     supabase
       .from("batches")
       .select(
-        "id, gtin, lot, expiry, qty, created_at, current_owner_facility_id",
+        "id, product_name, gtin, lot, expiry, qty, created_at, current_owner_facility_id",
       )
       .order("created_at", { ascending: false })
       .limit(5),
@@ -98,7 +110,8 @@ export default async function DashboardPage() {
     throw new Error(eventListResponse.error.message);
   }
 
-  const recentBatches = batchListResponse.data ?? [];
+  const recentBatches =
+    (batchListResponse.data as BatchSummary[] | null) ?? [];
   const recentEvents = eventListResponse.data ?? [];
 
   const stats = [
@@ -194,10 +207,18 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             {recentBatches.length === 0 ? (
-              <p className="text-muted-foreground">
-                No batches found for your facility yet. Create one to generate
-                GS1 DataMatrix labels and publish a manufacturing event.
-              </p>
+              <div className="space-y-2 text-muted-foreground">
+                <p>
+                  No batches found for your facility yet. Create one to generate
+                  GS1 DataMatrix labels and publish a manufacturing event.
+                </p>
+                <Link
+                  href="/batches/new"
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Go to batch creation
+                </Link>
+              </div>
             ) : (
               recentBatches.map((batch) => (
                 <div
@@ -205,7 +226,8 @@ export default async function DashboardPage() {
                   className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
                 >
                   <div>
-                    <p className="font-medium">
+                    <p className="font-medium">{batch.product_name ?? "Batch"}</p>
+                    <p className="text-xs text-muted-foreground">
                       GTIN {batch.gtin} · Lot {batch.lot}
                     </p>
                     <p className="text-xs text-muted-foreground">
