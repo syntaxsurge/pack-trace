@@ -38,6 +38,17 @@ interface FacilitySummary {
   type: string | null;
 }
 
+interface FacilityDirectoryEntry extends FacilitySummary {
+  country: string | null;
+  gs1CompanyPrefix: string | null;
+}
+
+type FacilityDirectoryState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; facilities: FacilityDirectoryEntry[] };
+
 interface BatchSummary {
   id: string;
   product_name: string | null;
@@ -116,6 +127,13 @@ export function ScannerClient({
     status: "idle",
   });
   const [handoverFacilityId, setHandoverFacilityId] = useState("");
+  const [facilityDirectory, setFacilityDirectory] =
+    useState<FacilityDirectoryState>({
+      status: "idle",
+    });
+  const [facilitySearch, setFacilitySearch] = useState("");
+  const [directoryRefreshToken, setDirectoryRefreshToken] = useState(0);
+  const normalizedFacilitySearch = facilitySearch.trim();
 
   const {
     videoRef,
@@ -241,6 +259,71 @@ export function ScannerClient({
     }
   }, [lookupBatch, result]);
 
+  useEffect(() => {
+    let isActive = true;
+    const controller = new AbortController();
+
+    async function loadDirectory() {
+      setFacilityDirectory({ status: "loading" });
+
+      const params = new URLSearchParams();
+      params.set("limit", "50");
+      params.set("includeSelf", "false");
+      if (normalizedFacilitySearch) {
+        params.set("q", normalizedFacilitySearch);
+      }
+
+      try {
+        const response = await fetch(`/api/facilities?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              facilities?: FacilityDirectoryEntry[];
+              error?: string;
+            }
+          | null;
+
+        if (!response.ok) {
+          const message =
+            payload?.error ?? "Failed to load facility directory.";
+          throw new Error(message);
+        }
+
+        if (!isActive) {
+          return;
+        }
+
+        const facilities = Array.isArray(payload?.facilities)
+          ? payload?.facilities ?? []
+          : [];
+
+        setFacilityDirectory({
+          status: "ready",
+          facilities,
+        });
+      } catch (directoryError) {
+        if (!isActive || controller.signal.aborted) {
+          return;
+        }
+        setFacilityDirectory({
+          status: "error",
+          message:
+            directoryError instanceof Error
+              ? directoryError.message
+              : "Failed to load facility directory.",
+        });
+      }
+    }
+
+    void loadDirectory();
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [facility?.id, directoryRefreshToken, normalizedFacilitySearch]);
+
   const handleAction = useCallback(
     async (actionType: CustodyEventType) => {
       if (!scanPayload) {
@@ -318,6 +401,11 @@ export function ScannerClient({
           warning: payload.warning,
         });
 
+        if (actionType === "HANDOVER") {
+          setHandoverFacilityId("");
+          setFacilitySearch("");
+        }
+
         // Refresh batch snapshot to reflect updated ownership.
         void lookupBatch(scanPayload);
       } catch (submitError) {
@@ -343,6 +431,50 @@ export function ScannerClient({
 
   const isSubmitting =
     actionState.state === "submitting" ? actionState.action : null;
+
+  const reloadFacilityDirectory = useCallback(() => {
+    setDirectoryRefreshToken((token) => token + 1);
+  }, []);
+
+  const filteredFacilities = useMemo(() => {
+    if (facilityDirectory.status !== "ready") {
+      return [];
+    }
+
+    const normalized = facilitySearch.trim().toLowerCase();
+
+    if (!normalized) {
+      return facilityDirectory.facilities;
+    }
+
+    return facilityDirectory.facilities.filter((entry) => {
+      const haystack = [
+        entry.name ?? "",
+        entry.type ?? "",
+        entry.country ?? "",
+        entry.gs1CompanyPrefix ?? "",
+        entry.id,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalized);
+    });
+  }, [facilityDirectory, facilitySearch]);
+
+  const selectedFacility = useMemo(() => {
+    if (facilityDirectory.status !== "ready" || !handoverFacilityId) {
+      return null;
+    }
+
+    return (
+      facilityDirectory.facilities.find(
+        (entry) => entry.id === handoverFacilityId,
+      ) ?? null
+    );
+  }, [facilityDirectory, handoverFacilityId]);
+
+  const isFacilityDirectoryLoading = facilityDirectory.status === "loading";
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 pb-12">
@@ -607,18 +739,129 @@ export function ScannerClient({
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="handover-facility">Destination facility ID</Label>
-              <Input
-                id="handover-facility"
-                value={handoverFacilityId}
-                onChange={(event) => setHandoverFacilityId(event.target.value)}
-                placeholder="UUID of the receiving facility"
-              />
-              <p className="text-xs text-muted-foreground">
-                Required for handovers. Auditors can enter any known facility ID.
-                Other roles must hand over to IDs granted within Supabase.
-              </p>
+            <div className="space-y-3">
+              <Label htmlFor="handover-search">Destination facility</Label>
+              <div className="grid gap-2">
+                <Input
+                  id="handover-search"
+                  value={facilitySearch}
+                  onChange={(event) => setFacilitySearch(event.target.value)}
+                  placeholder="Search by name, GS1 prefix, country, or facility ID"
+                  autoComplete="off"
+                  disabled={isFacilityDirectoryLoading}
+                  aria-describedby="handover-help"
+                />
+                <div className="rounded-lg border border-muted">
+                  {isFacilityDirectoryLoading ? (
+                    <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+                      <Loader2
+                        className="h-3.5 w-3.5 animate-spin"
+                        aria-hidden="true"
+                      />
+                      Loading facility directory…
+                    </div>
+                  ) : null}
+                  {facilityDirectory.status === "error" ? (
+                    <div className="flex items-start gap-3 p-3 text-xs text-destructive">
+                      <span>{facilityDirectory.message}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={reloadFacilityDirectory}
+                        disabled={isFacilityDirectoryLoading}
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  ) : null}
+                  {facilityDirectory.status === "ready" ? (
+                    filteredFacilities.length > 0 ? (
+                      <ul className="max-h-48 divide-y divide-border overflow-y-auto text-xs">
+                        {filteredFacilities.map((entry) => {
+                          const isSelected = handoverFacilityId === entry.id;
+                          return (
+                            <li key={entry.id}>
+                              <button
+                                type="button"
+                                onClick={() => setHandoverFacilityId(entry.id)}
+                                className={cn(
+                                  "flex w-full flex-col gap-1 px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                  isSelected
+                                    ? "bg-primary/10 text-primary"
+                                    : "hover:bg-muted",
+                                )}
+                                aria-pressed={isSelected}
+                              >
+                                <span className="text-sm font-medium">
+                                  {entry.name ?? "Unnamed facility"}
+                                </span>
+                                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  {entry.type ?? "UNKNOWN"}
+                                  {entry.gs1CompanyPrefix
+                                    ? ` • ${entry.gs1CompanyPrefix}`
+                                    : ""}
+                                  {entry.country ? ` • ${entry.country}` : ""}
+                                </span>
+                                <span className="font-mono text-[10px] text-muted-foreground">
+                                  {entry.id}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <div className="p-3 text-xs text-muted-foreground">
+                        No facilities match this search. Adjust filters or paste
+                        an ID directly below.
+                      </div>
+                    )
+                  ) : null}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="handover-facility" className="sr-only">
+                  Selected facility ID
+                </Label>
+                <Input
+                  id="handover-facility"
+                  value={handoverFacilityId}
+                  onChange={(event) => setHandoverFacilityId(event.target.value)}
+                  placeholder="Selected facility ID or paste a custom UUID"
+                  autoComplete="off"
+                  aria-describedby="handover-help"
+                />
+                <p className="text-xs text-muted-foreground" id="handover-help">
+                  Required for handovers. Choose from the directory or paste a
+                  verified facility UUID.
+                </p>
+              </div>
+              {selectedFacility ? (
+                <div className="rounded-md border border-primary/50 bg-primary/5 p-3 text-xs">
+                  <p className="font-medium text-primary">
+                    {selectedFacility.name ?? "Unnamed facility"}
+                  </p>
+                  <p className="text-[11px] uppercase tracking-wide text-primary/80">
+                    {selectedFacility.type ?? "UNKNOWN"}
+                    {selectedFacility.gs1CompanyPrefix
+                      ? ` • ${selectedFacility.gs1CompanyPrefix}`
+                      : ""}
+                    {selectedFacility.country
+                      ? ` • ${selectedFacility.country}`
+                      : ""}
+                  </p>
+                  <p className="mt-1 font-mono text-[11px] text-primary/70">
+                    {selectedFacility.id}
+                  </p>
+                </div>
+              ) : handoverFacilityId ? (
+                <div className="rounded-md border border-muted p-3 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">
+                    Custom facility ID
+                  </p>
+                  <p className="font-mono text-[11px]">{handoverFacilityId}</p>
+                </div>
+              ) : null}
             </div>
             <div className="rounded-lg border border-muted p-4 text-xs text-muted-foreground">
               <p className="font-medium text-foreground">

@@ -7,6 +7,7 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 - Hedera Consensus Service message flows with running hash persistence ([docs](https://docs.hedera.com/hedera/sdks-and-apis/sdks/consensus-service/submit-a-message)).
 - GS1 DataMatrix encoding for `(01) GTIN`, `(10) LOT`, `(17) EXP` using bwip-js ([guideline](https://www.gs1.org/docs/barcodes/GS1_DataMatrix_Guideline.pdf)).
 - Supabase Postgres schema with facility-scoped row-level security ([RLS reference](https://supabase.com/docs/guides/auth/row-level-security)).
+- Custody scanner integrates `/api/facilities` directory results for handover selection, removing the need to memorise facility UUIDs.
 - Next.js App Router UI with authenticated dashboard, invite and recovery flows, and marketing landing page.
 
 ## Architecture
@@ -17,7 +18,7 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 - Dashboard server components query Supabase directly for stats, recent batches, and custody events.
 
 ### Backend
-- Route Handlers (to be implemented) will live under `app/api/*` and use Supabase service role keys when required.
+- Route handlers under `app/api/*` apply Supabase service role keys when required, including custody event ingestion (`/api/events`) and facility directory queries (`/api/facilities`).
 - Supabase auth cookie middleware guards all private routes except `/`, `/login`, `/auth/*`, and `/verify`.
 - Hedera helpers in `lib/hedera` wrap the JavaScript SDK for client creation, topic management, message publishing, and Mirror Node reads.
 
@@ -125,6 +126,12 @@ timeline.entries.forEach((entry) => {
 - Facility profile section surfaces GS1 prefix, type, and onboarding timestamp.
 - Recent batches and custody events lists pull live data subject to RLS filters.
 - Quick links point operators toward `/batches/new` when no inventory exists yet.
+
+## Custody Scanner
+
+- `/scan` renders the `ScannerClient`, combining the progressive `useScanner` hook (BarcodeDetector primary, ZXing fallback) with Supabase lookups.
+- The facility directory loads from `/api/facilities`, giving operators a searchable destination list with manual overrides for auditors.
+- Custody actions invoke `/api/events` to persist `RECEIVED`, `HANDOVER`, and `DISPENSED` hops, returning Hedera metadata and SHA-256 payload hashes for audit surfaces.
 
 ## Batch Labeling
 

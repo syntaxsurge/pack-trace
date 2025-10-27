@@ -180,6 +180,21 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    if (
+      !isAuditor &&
+      batch.current_owner_facility_id &&
+      batch.current_owner_facility_id !== actorFacilityId
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Only the current owner facility or an auditor can confirm receipt.",
+        },
+        { status: 403 },
+      );
+    }
+
     fromFacilityId = batch.current_owner_facility_id;
     toFacilityId = actorFacilityId;
     nextOwnerFacilityId = actorFacilityId;
@@ -207,6 +222,15 @@ export async function POST(request: Request) {
     if (!destination) {
       return NextResponse.json(
         { error: "Destination facility does not exist." },
+        { status: 400 },
+      );
+    }
+
+    if (actorFacilityId && input.toFacilityId === actorFacilityId) {
+      return NextResponse.json(
+        {
+          error: "Handover destination must be different from the origin.",
+        },
         { status: 400 },
       );
     }
