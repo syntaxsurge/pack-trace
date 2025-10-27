@@ -237,6 +237,12 @@ export default async function DashboardPage() {
                   <div className="flex flex-col items-end text-xs text-muted-foreground">
                     <span>{batch.qty} units</span>
                     <span>Expires {formatDate(batch.expiry)}</span>
+                    <Link
+                      href={`/batches/${batch.id}`}
+                      className="mt-2 text-primary hover:underline"
+                    >
+                      View timeline
+                    </Link>
                   </div>
                 </div>
               ))
@@ -271,9 +277,15 @@ export default async function DashboardPage() {
                       {event.hcs_seq_no ?? "pending"}
                     </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDate(event.created_at)}
-                  </p>
+                  <div className="flex flex-col items-end text-xs text-muted-foreground">
+                    <span>{formatDate(event.created_at)}</span>
+                    <Link
+                      href={`/batches/${event.batch_id}`}
+                      className="mt-2 text-primary hover:underline"
+                    >
+                      Open batch
+                    </Link>
+                  </div>
                 </div>
               ))
             )}
