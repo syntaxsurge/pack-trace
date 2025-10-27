@@ -22,7 +22,7 @@ export default function Page() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Open the message titled <strong>"Activate pack-trace"</strong> and
+            Open the message titled <strong>&quot;Activate pack-trace&quot;</strong> and
             follow the link. Once confirmed, you can sign in and begin tracing
             batches end to end.
           </p>

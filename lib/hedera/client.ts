@@ -3,7 +3,6 @@ import { AccountId, Client, PrivateKey } from "@hashgraph/sdk";
 import { serverEnv } from "@/lib/env/server";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __hederaClient: Client | undefined;
 }
 
@@ -52,4 +51,3 @@ export function getHederaClient(): Client {
 
   return globalThis.__hederaClient;
 }
-
