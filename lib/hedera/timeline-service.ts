@@ -23,6 +23,21 @@ export interface LoadBatchTimelineResult {
   error: string | null;
 }
 
+export interface LoadCompleteBatchTimelineParams {
+  topicId: string;
+  identifiers: BatchIdentifiers;
+  pageSize?: number;
+  maxPages?: number;
+  order?: "asc" | "desc";
+}
+
+export interface LoadCompleteBatchTimelineResult {
+  entries: CustodyTimelineEntry[];
+  truncated: boolean;
+  note: string | null;
+  error: string | null;
+}
+
 export async function loadBatchTimeline({
   topicId,
   identifiers,
@@ -69,3 +84,58 @@ export async function loadBatchTimeline({
   }
 }
 
+export async function loadCompleteBatchTimeline({
+  topicId,
+  identifiers,
+  pageSize = 100,
+  maxPages = 20,
+  order = "asc",
+}: LoadCompleteBatchTimelineParams): Promise<LoadCompleteBatchTimelineResult> {
+  try {
+    let cursor: string | null = null;
+    const entries: CustodyTimelineEntry[] = [];
+    const seen = new Set<number>();
+    let fetchedPages = 0;
+
+    do {
+      const response = await fetchCustodyTimeline(
+        topicId,
+        cursor ? { next: cursor } : { limit: pageSize, order },
+      );
+
+      const filtered = filterTimelineEntriesByBatch(
+        response.entries,
+        identifiers,
+      );
+
+      for (const entry of filtered) {
+        if (seen.has(entry.sequenceNumber)) continue;
+        entries.push(entry);
+        seen.add(entry.sequenceNumber);
+      }
+
+      cursor = response.next ?? null;
+      fetchedPages += 1;
+
+      if (!cursor) {
+        break;
+      }
+    } while (fetchedPages < maxPages);
+
+    const truncated = Boolean(cursor);
+
+    return {
+      entries,
+      truncated,
+      note: null,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      entries: [],
+      truncated: false,
+      note: null,
+      error: (error as Error).message,
+    };
+  }
+}

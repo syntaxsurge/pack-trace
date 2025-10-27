@@ -25,15 +25,20 @@ export default function DashboardLayout({
             <Link
               href="/dashboard"
               className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Overview
-            </Link>
-          </nav>
-          <AuthButton />
-        </div>
-      </header>
+          >
+            Overview
+          </Link>
+          <Link
+            href="/reports"
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Reports
+          </Link>
+        </nav>
+        <AuthButton />
+      </div>
+    </header>
       <main className="mx-auto w-full max-w-6xl px-6 py-10">{children}</main>
     </div>
   );
 }
-
