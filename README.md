@@ -19,6 +19,7 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 ### Backend
 - Route Handlers (to be implemented) will live under `app/api/*` and use Supabase service role keys when required.
 - Supabase auth cookie middleware guards all private routes except `/`, `/login`, `/auth/*`, and `/verify`.
+- Hedera helpers in `lib/hedera` wrap the JavaScript SDK for client creation, topic management, message publishing, and Mirror Node reads.
 
 ### Distributed Ledger
 - Hedera Consensus Service topic IDs recorded on `batches.topic_id`.
@@ -37,6 +38,53 @@ Defined in `supabase/migrations/000_init.sql`:
 Row-level policies allow auditors full read access while other roles are scoped to their facility through helper functions `get_my_facility()`, `is_admin()`, and `is_auditor()`.
 
 Auth triggers (`public.sync_user_profile`) synchronize `auth.users` changes into `public.users`, normalizing email addresses and keeping display names aligned.
+
+## Hedera Integration
+
+- `lib/hedera/client.ts` – caches a server-side `Client` instance (mainnet/testnet/previewnet) using `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_KEY`.
+- `lib/hedera/topic.ts` – exposes `createTopic()` and `submitTopicMessage()` with message size validation and transaction metadata.
+- `lib/hedera/publisher.ts` – `publishCustodyEvent()` serialises a `CustodyEventPayload`, submits it, and returns the SHA-256 payload hash plus Hedera receipt fields for persistence.
+- `lib/hedera/mirror.ts` & `lib/hedera/timeline.ts` – fetch and decode Mirror Node topic messages, returning structured custody timeline entries and `links.next` pagination data.
+- Example snippets under `lib/hedera/examples/*` mirror the official Hedera docs for topic creation, message submission, and HTS token setup.
+
+**Publishing an event**
+
+```ts
+import { publishCustodyEvent } from "@/lib/hedera";
+
+const result = await publishCustodyEvent({
+  payload: {
+    v: 1,
+    type: "HANDOVER",
+    batch: { gtin: "09506000134352", lot: "A123", exp: "2025-12-31" },
+    actor: { facilityId: "fac_123", role: "DISTRIBUTOR" },
+    to: { facilityId: "fac_987" },
+    ts: new Date().toISOString(),
+    prev: null,
+  },
+});
+
+// Persist to Postgres
+// result.payloadHash -> events.payload_hash
+// result.transactionId -> events.hcs_tx_id
+// result.sequenceNumber -> events.hcs_seq_no
+// result.runningHash -> events.hcs_running_hash
+```
+
+**Reading the custody timeline**
+
+```ts
+import { fetchCustodyTimeline } from "@/lib/hedera";
+
+const timeline = await fetchCustodyTimeline(process.env.HEDERA_TOPIC_ID!, {
+  limit: 25,
+  order: "desc",
+});
+
+timeline.entries.forEach((entry) => {
+  console.log(entry.sequenceNumber, entry.type, entry.consensusTimestamp);
+});
+```
 
 ## Getting Started
 
