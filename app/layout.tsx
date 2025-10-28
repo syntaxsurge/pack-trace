@@ -15,11 +15,36 @@ export const metadata: Metadata = {
   },
   description:
     "Hedera-backed GS1 traceability for pharmaceutical packs across manufacturing, distribution, and dispensing.",
+  manifest: "/manifest.webmanifest",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0F172A" },
+    { media: "(prefers-color-scheme: light)", color: "#22C55E" },
+  ],
   openGraph: {
     title: "pack-trace",
     description:
       "Hedera-backed GS1 traceability for pharmaceutical packs across manufacturing, distribution, and dispensing.",
     url: defaultUrl,
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/icon-192x192.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [
+      {
+        rel: "mask-icon",
+        url: "/icons/icon-512x512-maskable.png",
+        color: "#0F172A",
+      },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
   },
   twitter: {
     card: "summary_large_image",
