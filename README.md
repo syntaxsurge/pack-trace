@@ -19,6 +19,7 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 
 ### Backend
 - Route handlers under `app/api/*` apply Supabase service role keys when required, including custody event ingestion (`/api/events`) and facility directory queries (`/api/facilities`).
+- REST API surface delivers batch creation (`POST /api/batches`), batch snapshots (`GET /api/batches/:id`), DataMatrix label exports (`GET /api/batches/:id/label`), custody timelines (`GET /api/timeline`), verification (`GET /api/verify`), dispensing receipts (`POST /api/dispense`), and traceability reports (`GET /api/report`).
 - Supabase auth cookie middleware guards all private routes except `/`, `/login`, `/auth/*`, and `/verify`.
 - Hedera helpers in `lib/hedera` wrap the JavaScript SDK for client creation, topic management, message publishing, and Mirror Node reads.
 
@@ -136,7 +137,7 @@ timeline.entries.forEach((entry) => {
 ## Batch Labeling
 
 - `/batches/new` collects product name, GTIN, lot, expiry, and quantity, validating inputs with `lib/labels/gs1`.
-- Live previews render GS1 DataMatrix barcodes via `bwip-js/browser` with download and print actions for production labels.
+- Live previews render GS1 DataMatrix barcodes via `bwip-js/browser` with download and print actions for production labels; `POST /api/batches` responds with GS1 metadata and `/api/batches/:id/label` delivers a ready-to-print PDF export.
 - Successful submissions persist GTIN-14, lot, expiry, quantity, human-readable label text, and product name to Supabase while scoping ownership to the operator’s facility.
 
 ## Scripts

@@ -1,10 +1,8 @@
-import { parseGs1Datamatrix } from "@/lib/labels/gs1";
 import { serverEnv } from "@/lib/env/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { loadBatchTimeline } from "@/lib/hedera/timeline-service";
 import { decodeCursorParam, encodeCursorParam } from "@/lib/utils/cursor";
 import { buildMirrorMessageUrl, buildMirrorTopicUrl } from "@/lib/hedera/links";
 import { formatConsensusTimestamp } from "@/lib/hedera/format";
+import { verifyCode } from "@/lib/verify/service";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -14,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { VerifyClient } from "./verify-client";
-import type { VerifyBatch, VerifyState, VerifyStatus } from "./types";
+import type { VerifyState, VerifyStatus } from "./types";
 
 export const dynamic = "force-dynamic";
 
@@ -54,31 +52,23 @@ function formatRawMessage(value: string): string {
   }
 }
 
-function buildStatusMessage(status: VerifyStatus, state: VerifyState): string {
-  switch (status) {
+function resolveStatusMessage(state: VerifyState): string {
+  if (state.message) {
+    return state.message;
+  }
+
+  switch (state.status) {
     case "idle":
-      return (
-        state.message ??
-        "Scan a GS1 DataMatrix barcode or paste the encoded value to verify the pack."
-      );
+      return "Scan a GS1 DataMatrix barcode or paste the encoded value to verify the pack.";
     case "genuine":
-      return (
-        state.message ??
-        "This pack matches a custody record published to Hedera."
-      );
+      return "This pack matches a custody record published to Hedera.";
     case "unknown":
-      return (
-        state.message ??
-        "No custody record was found for the provided identifiers."
-      );
+      return "No custody record was found for the provided identifiers.";
     case "mismatch":
-      return (
-        state.message ??
-        "The GTIN and lot match a custody record, but the expiry date differs."
-      );
+      return "The GTIN and lot match a custody record, but the expiry date differs.";
     case "error":
     default:
-      return state.message ?? "Unable to verify the provided code.";
+      return "Unable to verify the provided code.";
   }
 }
 
@@ -113,11 +103,6 @@ function statusTone(status: VerifyStatus) {
   }
 }
 
-function resolveTopicId(batch: VerifyBatch | null): string | null {
-  if (batch?.topic_id) return batch.topic_id;
-  return serverEnv.hederaTopicId ?? null;
-}
-
 export default async function VerifyPage({ searchParams }: PageProps) {
   const codeParam = searchParams.code;
   const cursorParam = searchParams.cursor;
@@ -130,101 +115,9 @@ export default async function VerifyPage({ searchParams }: PageProps) {
         : null;
 
   const cursor = decodeCursorParam(cursorParam);
-  const admin = createAdminClient();
-
-  let parsed: VerifyState["parsed"] = null;
-  let parseError: string | null = null;
-  let batch: VerifyBatch | null = null;
-  let status: VerifyStatus = "idle";
-  let message: string | null = null;
-
-  if (code) {
-    try {
-      parsed = parseGs1Datamatrix(code);
-    } catch (error) {
-      parseError = (error as Error).message;
-      status = "error";
-      message = parseError;
-    }
-  }
-
-  if (parsed) {
-    const batchResponse = await admin
-      .from("batches")
-      .select(
-        "id, product_name, gtin, lot, expiry, qty, label_text, topic_id, current_owner_facility_id, created_at",
-      )
-      .eq("gtin", parsed.gtin14)
-      .eq("lot", parsed.lot)
-      .maybeSingle();
-
-    if (batchResponse.error && batchResponse.error.code !== "PGRST116") {
-      throw new Error(batchResponse.error.message);
-    }
-
-    batch = (batchResponse.data as VerifyBatch | null) ?? null;
-
-    if (batch) {
-      if (batch.expiry !== parsed.expiryIsoDate) {
-        status = "mismatch";
-        message =
-          "Expiry does not match the custody record. Confirm the label and contact support.";
-      } else {
-        status = "genuine";
-        message = "This pack is authentic and present on the custody timeline.";
-      }
-    } else {
-      status = "unknown";
-      message = "No custody record was found for the provided identifiers.";
-    }
-  } else if (!parseError) {
-    status = "idle";
-  }
-
-  const topicId = resolveTopicId(batch);
-
-  let timelineEntries: VerifyState["timelineEntries"] = [];
-  let timelineNote: string | null = null;
-  let timelineError: string | null = null;
-  let nextCursor: string | null = null;
-
-  if (batch && parsed && topicId) {
-    const timeline = await loadBatchTimeline({
-      topicId,
-      identifiers: {
-        gtin: batch.gtin,
-        lot: batch.lot,
-        expiry: batch.expiry,
-      },
-      cursor,
-      limit: 10,
-    });
-
-    timelineEntries = timeline.entries;
-    timelineNote = timeline.note;
-    timelineError = timeline.error;
-    nextCursor = timeline.nextCursor;
-  } else if (batch && !topicId) {
-    timelineError =
-      "This batch is not linked to a Hedera topic. Request support to publish custody events.";
-  }
-
-  const state: VerifyState = {
-    code,
-    parsed,
-    parseError,
-    status,
-    message,
-    batch,
-    timelineEntries,
-    timelineNote,
-    timelineError,
-    nextCursor,
-    topicId,
-  };
-
-  const tone = statusTone(status);
-  const statusMessage = buildStatusMessage(status, state);
+  const state = await verifyCode({ code, cursor, limit: 10 });
+  const tone = statusTone(state.status);
+  const statusMessage = resolveStatusMessage(state);
 
   return (
     <div className="space-y-10">
