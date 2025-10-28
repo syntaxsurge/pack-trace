@@ -6,7 +6,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "db:push": "supabase db push --db-url \"$SUPABASE_DB_URL\""
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.54.0",
