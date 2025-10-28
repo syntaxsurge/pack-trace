@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -646,9 +647,9 @@ export function ScannerClient({
               {batchState.status === "not-found" ? (
                 <p className="text-xs text-muted-foreground">
                   No batch was found for this GTIN and lot. Create it from the{" "}
-                  <a className="underline" href="/batches/new">
+                  <Link className="underline" href="/batches/new">
                     batch registration form
-                  </a>{" "}
+                  </Link>{" "}
                   before logging custody events.
                 </p>
               ) : null}

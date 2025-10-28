@@ -1,4 +1,5 @@
 import PdfPrinter from "pdfmake";
+import vfsFonts from "pdfmake/build/vfs_fonts";
 
 type FontDictionary = {
   [font: string]: {
@@ -12,8 +13,7 @@ type FontDictionary = {
 function loadEmbeddedFonts(): FontDictionary {
   // pdfmake packages Roboto fonts inside its virtual file system bundle.
   // We decode the base64 values into Buffers so PdfPrinter can consume them in Node.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const vfsModule = require("pdfmake/build/vfs_fonts") as {
+  const vfsModule = vfsFonts as {
     pdfMake?: { vfs: Record<string, string> };
     vfs?: Record<string, string>;
     default?: Record<string, string>;

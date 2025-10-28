@@ -218,7 +218,7 @@ export async function loadTraceabilitySnapshot(
   }
 
   let timelineResult: LoadCompleteBatchTimelineResult | null = null;
-  let topicId: string | null = batch.topic_id ?? serverEnv.hederaTopicId;
+  const topicId: string | null = batch.topic_id ?? serverEnv.hederaTopicId;
 
   if (topicId) {
     timelineResult = await loadCompleteBatchTimeline({
