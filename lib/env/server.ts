@@ -14,6 +14,7 @@ const serverSchema = z.object({
   TWILIO_FROM_NUMBER: z.string().optional(),
   AT_API_KEY: z.string().optional(),
   AT_USERNAME: z.string().optional(),
+  DEMO_SEED_PASSWORD: z.string().optional(),
 });
 
 const parsed = serverSchema.parse(process.env);
@@ -31,5 +32,5 @@ export const serverEnv = {
   africasTalkingApiKey: parsed.AT_API_KEY ?? null,
   africasTalkingUsername: parsed.AT_USERNAME ?? null,
   network: clientEnv.network,
+  demoSeedPassword: parsed.DEMO_SEED_PASSWORD ?? null,
 } as const;
-

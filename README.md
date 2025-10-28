@@ -146,6 +146,26 @@ timeline.entries.forEach((entry) => {
 - `npm start` – start the production server.
 - `npm run lint` – eslint quality checks.
 - `npm run typecheck` – TypeScript without emit (required before merging).
+- `npm run seed:demo` – provision demo facilities, accounts, batches, events, and receipts in Supabase (requires service role key).
+
+## Demo data & credentials
+
+Run the seeding script once your Supabase project is configured:
+
+```bash
+npm run seed:demo
+```
+
+The script reads `.env.local`, creates facilities for the manufacturer, distributor, pharmacy, and auditor personas, and loads two batches with full custody histories. By default the password is `TraceDemo!24`; override it by setting `DEMO_SEED_PASSWORD` before running the script.
+
+Demo logins after seeding:
+
+- Manufacturer admin – `manufacturer@packtrace.app`
+- Distributor operator – `distributor@packtrace.app`
+- Pharmacy technician – `pharmacy@packtrace.app`
+- Auditor reviewer – `auditor@packtrace.app`
+
+Each account uses the shared demo password (or the override you provided) and can be rotated safely by re-running the script.
 
 ## Reference Links
 
