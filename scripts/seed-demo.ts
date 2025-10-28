@@ -62,7 +62,10 @@ type DemoReceipt = {
 };
 
 const admin = createAdminClient();
-const demoPassword = process.env.DEMO_SEED_PASSWORD ?? "TraceDemo!24";
+const demoPassword =
+  process.env.DEMO_SEED_PASSWORD && process.env.DEMO_SEED_PASSWORD.trim().length > 0
+    ? process.env.DEMO_SEED_PASSWORD
+    : "TraceDemo!24";
 
 function logStep(message: string) {
   console.log(`▪️ ${message}`);

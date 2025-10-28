@@ -47,3 +47,6 @@ next-env.d.ts
 /public/sw.js
 /public/workbox-*.js
 /public/precache-manifest.*.js
+
+# supabase cli cache
+supabase/.temp

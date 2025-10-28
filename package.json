@@ -6,8 +6,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "seed:demo": "tsx scripts/seed-demo.ts",
-    "db:push": "supabase db push --db-url \"$SUPABASE_DB_URL\""
+    "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.54.0",
@@ -28,6 +27,7 @@
     "pdfmake": "^0.2.20",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "supabase": "^2.54.10",
     "tailwind-merge": "^3.3.0",
     "zod": "^3.23.8"
   },
@@ -38,6 +38,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "postcss": "^8",
