@@ -14,6 +14,8 @@ import {
 } from "@/lib/labels/gs1";
 import { createBatchAction } from "@/app/(workspace)/batches/new/actions";
 import type { CreateBatchActionState } from "@/app/(workspace)/batches/new/actions";
+import type { Gs1DatamatrixPayload } from "@/lib/labels/gs1";
+import { LabelIdentityPanel } from "@/app/(workspace)/batches/_components/label-identity-panel";
 
 const EMPTY_FORM = {
   productName: "",
@@ -40,6 +42,12 @@ export function BatchForm({ facilityName }: BatchFormProps) {
     CreateBatchActionState,
     FormData
   >(createBatchAction, INITIAL_ACTION_STATE);
+  const [lastIdentity, setLastIdentity] = useState<{
+    payload: Gs1DatamatrixPayload;
+    quantity: number;
+    productName: string;
+    facilityName: string;
+  } | null>(null);
 
   const preview = useMemo(() => {
     const parsed = batchLabelInputSchema.safeParse({
@@ -58,13 +66,19 @@ export function BatchForm({ facilityName }: BatchFormProps) {
   }, [formValues]);
 
   useEffect(() => {
-    if (state.status === "success") {
+    if (state.status === "success" && preview?.payload) {
+      setLastIdentity({
+        payload: preview.payload,
+        quantity: preview.quantity,
+        productName: formValues.productName,
+        facilityName,
+      });
       setFormValues((values) => ({
         ...values,
         lot: "",
       }));
     }
-  }, [state.status]);
+  }, [facilityName, formValues.productName, preview, state.status]);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -190,14 +204,30 @@ export function BatchForm({ facilityName }: BatchFormProps) {
               <p className="text-sm text-destructive">{state.errors.form}</p>
             ) : null}
             {state.status === "success" ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-                <span>{state.message ?? "Batch created."}</span>
-                {state.batchId ? (
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/batches/${state.batchId}`} prefetch={false}>
-                      View timeline
-                    </Link>
-                  </Button>
+              <div className="space-y-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span>{state.message ?? "Batch created."}</span>
+                  {state.batchId ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/batches/${state.batchId}`} prefetch={false}>
+                        View timeline
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
+                {lastIdentity ? (
+                  <LabelIdentityPanel
+                    labelText={lastIdentity.payload.humanReadable}
+                    batchId={state.batchId}
+                    productName={lastIdentity.productName}
+                    gtin={lastIdentity.payload.gtin14}
+                    lot={lastIdentity.payload.lot}
+                    expiry={lastIdentity.payload.expiryIsoDate}
+                    quantity={lastIdentity.quantity}
+                    facilityName={lastIdentity.facilityName}
+                    note="This label is deterministic—reprint or download it anytime from the batch page."
+                    printLabel="Print label"
+                  />
                 ) : null}
               </div>
             ) : null}

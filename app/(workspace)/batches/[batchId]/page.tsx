@@ -23,6 +23,10 @@ import { decodeCursorParam, encodeCursorParam } from "@/lib/utils/cursor";
 import { formatConsensusTimestamp } from "@/lib/hedera/format";
 import { createClient } from "@/lib/supabase/server";
 import TopicLinksPanel from "./topic-links";
+import {
+  LabelIdentityPanel,
+  LabelIdentityZoomTrigger,
+} from "@/app/(workspace)/batches/_components/label-identity-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +145,18 @@ export default async function BatchTimelinePage({
   if (!user) {
     redirect("/login");
   }
+
+  const profileResponse = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileResponse.error && profileResponse.error.code !== "PGRST116") {
+    throw new Error(profileResponse.error.message);
+  }
+
+  const userRole = (profileResponse.data?.role as string | null) ?? null;
 
   const batchResponse = await supabase
     .from("batches")
@@ -277,92 +293,50 @@ export default async function BatchTimelinePage({
     timelineEntries.length === 0 &&
     events.some((event) => event.hcs_seq_no !== null);
 
-  const labelImageUrl = `/api/batches/${batch.id}/label?format=png`;
-
   return (
     <div className="space-y-10">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-3">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Batch timeline
-          </h1>
+      <section className="space-y-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight">Batch timeline</h1>
           <p className="text-sm text-muted-foreground">
-            Review on-ledger custody events for this batch, cross-referenced with
-            database records.
+            Review on-ledger custody events for this batch, cross-referenced with database records.
           </p>
-          {batch.label_text ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex h-40 w-40 items-center justify-center rounded-lg border bg-white p-3 shadow-sm dark:bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={labelImageUrl}
-                    alt={`GS1 DataMatrix for ${batch.label_text}`}
-                    className="h-full w-full object-contain"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={labelImageUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    Open PNG
-                  </a>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <a
-                    href={`/api/batches/${batch.id}/label`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-medium text-primary underline-offset-4 hover:underline"
-                  >
-                    Download PDF
-                  </a>
-                </div>
-              </div>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <p className="font-mono text-[11px]">{batch.label_text}</p>
-                <p>
-                  Labels are generated as GS1 DataMatrix symbols (not QR codes).
-                  They require a light margin—print without scaling for reliable scans.
-                </p>
-              </div>
-            </div>
-          ) : null}
         </div>
-        <div className="space-y-2 text-sm">
+        {batch.label_text ? (
+          <div className="lg:sticky lg:top-24">
+            <LabelIdentityPanel
+              labelText={batch.label_text}
+              batchId={batch.id}
+              productName={batch.product_name}
+              gtin={batch.gtin}
+              lot={batch.lot}
+              expiry={batch.expiry}
+              quantity={batch.qty}
+              facilityName={null}
+              userRole={userRole}
+              printLabel="Reprint label"
+            />
+          </div>
+        ) : (
+          <div className="rounded border border-dashed border-muted-foreground/40 p-4 text-sm text-muted-foreground">
+            No GS1 label is associated with this batch.
+          </div>
+        )}
+        <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Product</span>
-            <span className="font-medium">
-              {batch.product_name ?? "—"}
-            </span>
+            <span className="font-medium">{batch.product_name ?? "—"}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">GTIN</span>
-            <span className="font-medium">{batch.gtin}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Lot</span>
-            <span className="font-medium">{batch.lot}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Expiry</span>
-            <span className="font-medium">{formatDate(batch.expiry)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Quantity</span>
-            <span className="font-medium">{formatQuantity(batch.qty)}</span>
+            <span className="text-muted-foreground">Created</span>
+            <span className="font-medium">{formatDate(batch.created_at)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Current owner</span>
-            <span className="font-medium">
-              {formatFacilityId(batch.current_owner_facility_id)}
-            </span>
+            <span className="font-medium">{formatFacilityId(batch.current_owner_facility_id)}</span>
           </div>
         </div>
-      </header>
+      </section>
 
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <Card>
@@ -519,6 +493,12 @@ export default async function BatchTimelinePage({
                   <Badge variant="outline" className="uppercase tracking-wide">
                     {formatEventType(event.type)}
                   </Badge>
+                  {event.type?.toUpperCase() === "MANUFACTURED" ? (
+                    <>
+                      <span className="text-xs text-muted-foreground">·</span>
+                      <LabelIdentityZoomTrigger />
+                    </>
+                  ) : null}
                   <span className="text-xs text-muted-foreground">
                     {formatIsoDateTime(event.created_at)}
                   </span>
