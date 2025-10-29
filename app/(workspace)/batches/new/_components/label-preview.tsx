@@ -44,7 +44,7 @@ export function LabelPreview({
 
         mod.default.toCanvas(canvasRef.current, {
           bcid: "gs1datamatrix",
-          text: payload.machineReadable,
+          text: payload.humanReadable,
           scale: 6,
           paddingwidth: 6,
           paddingheight: 6,

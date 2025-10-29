@@ -10,7 +10,7 @@ async function renderDatamatrixPng(payload: Gs1DatamatrixPayload): Promise<Buffe
       bwipjs.toBuffer(
         {
           bcid: "gs1datamatrix",
-          text: payload.machineReadable,
+          text: payload.humanReadable,
           scale: 6,
           paddingwidth: 6,
           paddingheight: 6,
