@@ -980,10 +980,10 @@ export function ScannerClient({
             </CardHeader>
             <CardContent className="space-y-4">
               {payloadError ? (
-                <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/15 p-3 text-sm">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                   <div>
-                    <p className="font-medium">Unable to parse GS1 data</p>
+                    <p className="font-medium text-destructive">Unable to parse GS1 data</p>
                     <p className="text-xs text-destructive/80">{payloadError}</p>
                   </div>
                 </div>
@@ -1392,9 +1392,9 @@ export function ScannerClient({
             </div>
           ) : null}
           {actionState.state === "error" ? (
-            <div className="flex items-start gap-2 text-xs text-destructive">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>{actionState.message}</span>
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/15 p-3 text-xs">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+              <span className="text-destructive-foreground/90">{actionState.message}</span>
             </div>
           ) : null}
         </CardFooter>
