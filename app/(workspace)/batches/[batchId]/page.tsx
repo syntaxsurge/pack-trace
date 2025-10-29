@@ -51,12 +51,12 @@ interface EventRecord {
 }
 
 interface PageProps {
-  params: {
+  params: Promise<{
     batchId: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     cursor?: string | string[];
-  };
+  }>;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -124,7 +124,10 @@ export default async function BatchTimelinePage({
   params,
   searchParams,
 }: PageProps) {
-  const batchIdResult = z.string().uuid().safeParse(params.batchId);
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+
+  const batchIdResult = z.string().uuid().safeParse(resolvedParams.batchId);
   if (!batchIdResult.success) {
     notFound();
   }
@@ -178,7 +181,7 @@ export default async function BatchTimelinePage({
     a.created_at < b.created_at ? 1 : -1,
   );
 
-  const cursor = decodeCursorParam(searchParams.cursor);
+  const cursor = decodeCursorParam(resolvedSearchParams.cursor);
 
   const topicId = getTopicId(batch);
 
