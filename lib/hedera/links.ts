@@ -5,9 +5,9 @@ const MIRROR_EXPLORER_BASE: Record<string, string> = {
 } as const;
 
 const HASHSCAN_BASE: Record<string, string> = {
-  mainnet: "https://hashscan.io/#/mainnet",
-  testnet: "https://hashscan.io/#/testnet",
-  previewnet: "https://hashscan.io/#/previewnet",
+  mainnet: "https://hashscan.io/mainnet",
+  testnet: "https://hashscan.io/testnet",
+  previewnet: "https://hashscan.io/previewnet",
 } as const;
 
 export function getMirrorExplorerBase(network: string): string {
