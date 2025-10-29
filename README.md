@@ -114,12 +114,12 @@ timeline.entries.forEach((entry) => {
    ```
 3. **Create a topic for custody events**
    ```bash
-   pnpm tsx lib/hedera/examples/topic-create.ts "pack-trace topic"
+   pnpm tsx -r dotenv/config lib/hedera/examples/topic-create.ts "pack-trace topic"
    ```
-   The script requires the environment variables above and returns a topic ID like `0.0.987654`. Add that value to `HEDERA_TOPIC_ID`.
+   The script loads `.env` via `dotenv`, creates the topic, and prints an ID like `0.0.987654`. Copy that value into `HEDERA_TOPIC_ID`.
 4. **Verify (optional)**
    - Paste the topic ID into [HashScan](https://hashscan.io/testnet) to confirm it exists.
-   - Run `pnpm tsx lib/hedera/examples/topic-submit.ts 0.0.987654 "hello world"` to publish a test message.
+   - Run `pnpm tsx -r dotenv/config lib/hedera/examples/topic-submit.ts 0.0.987654 "hello world"` to publish a test message.
 5. **Restart the dev server** so `/scan`, batch timelines, and `/verify` can append and read Hedera messages.
 
 3. **Apply database schema**
