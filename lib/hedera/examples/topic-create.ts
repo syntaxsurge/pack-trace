@@ -31,3 +31,28 @@ export async function exampleCreateTopic() {
 
   return receipt.topicId?.toString();
 }
+
+async function runCli() {
+  try {
+    const memo = process.argv[2] ?? "pack-trace topic";
+    const topicId = await exampleCreateTopic();
+
+    if (!topicId) {
+      console.log("Topic created, but no topic ID was returned.");
+      return;
+    }
+
+    console.log(`Created topic ${topicId}${memo ? ` (${memo})` : ""}`);
+    console.log(
+      "Add this value to HEDERA_TOPIC_ID in your .env and restart the dev server.",
+    );
+  } catch (error) {
+    console.error("Failed to create Hedera topic.");
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  }
+}
+
+if (process.argv[1]?.includes("topic-create")) {
+  void runCli();
+}
