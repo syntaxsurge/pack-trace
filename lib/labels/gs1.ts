@@ -54,16 +54,29 @@ export interface ParsedGs1Datamatrix {
   humanReadable: string;
 }
 
+function calculateGtinCheckDigit(body: string): string {
+  const reversed = body.split("").reverse();
+  let sum = 0;
+
+  for (let index = 0; index < reversed.length; index++) {
+    const digit = Number(reversed[index]);
+    if (Number.isNaN(digit)) {
+      throw new Error("GTIN must contain only digits (8, 12, 13, or 14 characters).");
+    }
+    sum += digit * (index % 2 === 0 ? 3 : 1);
+  }
+
+  return String((10 - (sum % 10)) % 10);
+}
+
 function normalizeGtin(gtin: string): string {
   if (!/^\d{8,14}$/.test(gtin)) {
     throw new Error("GTIN must contain only digits (8, 12, 13, or 14 characters).");
   }
 
-  if (gtin.length === 14) {
-    return gtin;
-  }
-
-  return gtin.padStart(14, "0");
+  const body = gtin.slice(0, -1).padStart(13, "0");
+  const checkDigit = calculateGtinCheckDigit(body);
+  return `${body}${checkDigit}`;
 }
 
 function parseExpiryDate(expiry: string): { isoDate: string; yyMmDd: string } {
