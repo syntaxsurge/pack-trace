@@ -267,18 +267,18 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
         </div>
 
         <div className="flex-1 space-y-6 text-sm">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <InfoChip label="GTIN" value={gtin} emphasis />
-            <InfoChip label="Lot" value={lot} />
-            <InfoChip label="Expiry" value={expiry} />
+          <div className="grid gap-px rounded-xl border border-border/60 bg-border/40 text-sm shadow-sm dark:border-border/40 dark:bg-border/20">
+            <InfoRow label="GTIN" value={gtin} emphasize />
+            <InfoRow label="Lot" value={lot} />
+            <InfoRow label="Expiry" value={expiry} />
             {productName ? (
-              <InfoChip label="Product" value={productName} multiline />
+              <InfoRow label="Product" value={productName} multiline />
             ) : null}
             {quantity !== undefined && quantity !== null ? (
-              <InfoChip label="Quantity" value={String(quantity)} />
+              <InfoRow label="Quantity" value={String(quantity)} />
             ) : null}
             {facilityName ? (
-              <InfoChip label="Facility" value={facilityName} multiline />
+              <InfoRow label="Facility" value={facilityName} multiline />
             ) : null}
           </div>
 
@@ -327,7 +327,9 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
           </div>
 
           {note ? (
-            <p className="text-xs text-muted-foreground">{note}</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {note}
+            </p>
           ) : null}
 
           {feedback ? (
@@ -408,6 +410,33 @@ function InfoChip({ label, value, emphasis, multiline }: InfoChipProps) {
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+interface InfoRowProps {
+  label: string;
+  value: string;
+  emphasize?: boolean;
+  multiline?: boolean;
+}
+
+function InfoRow({ label, value, emphasize, multiline }: InfoRowProps) {
+  return (
+    <div className="grid grid-cols-[120px_1fr] gap-4 bg-background/80 px-4 py-3 sm:grid-cols-[140px_1fr] dark:bg-background/60">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={cn(
+          "text-sm font-medium text-foreground",
+          emphasize && "text-base font-semibold tracking-tight text-primary",
+          multiline ? "whitespace-normal break-words" : "truncate",
+        )}
+        title={value}
+      >
+        {value}
+      </span>
     </div>
   );
 }
