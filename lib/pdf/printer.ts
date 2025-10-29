@@ -20,10 +20,22 @@ function loadEmbeddedFonts(): FontDictionary {
     [key: string]: unknown;
   };
 
-  const vfs =
+  let vfs =
     vfsModule.pdfMake?.vfs ??
     vfsModule.vfs ??
     (vfsModule.default as Record<string, string> | undefined);
+
+  if (!vfs) {
+    const direct = vfsModule as Record<string, unknown>;
+    const hasFontEntries = Object.keys(direct).some((key) =>
+      key.toLowerCase().endsWith(".ttf"),
+    );
+    if (hasFontEntries) {
+      vfs = Object.fromEntries(
+        Object.entries(direct).filter(([key]) => key.toLowerCase().endsWith(".ttf")),
+      ) as Record<string, string>;
+    }
+  }
 
   if (!vfs) {
     throw new Error("Unable to load pdfmake virtual fonts.");
