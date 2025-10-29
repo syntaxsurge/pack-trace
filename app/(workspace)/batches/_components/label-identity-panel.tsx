@@ -211,41 +211,27 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
   const isPrintDisabled =
     userRole?.toUpperCase() === "AUDITOR" || !batchId || !!renderError;
 
-  const actionButton = (
-    icon: React.ReactNode,
-    label: string,
-    onClick: () => void,
-    disabled?: boolean,
-  ) => (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onClick}
-      disabled={disabled}
-      className="justify-between"
-    >
-      <span>{label}</span>
-      <span className="text-muted-foreground">{icon}</span>
-    </Button>
-  );
-
   return (
-    <div className="space-y-4 rounded-lg border bg-background/60 p-5 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/40">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex flex-col items-center gap-3">
-          <div className={cn("flex items-center justify-center rounded-lg border bg-white p-4 shadow-sm", isZoomOpen ? "ring-2 ring-primary" : "")}>
+    <div className="space-y-6 rounded-2xl border border-border/60 bg-card/80 p-6 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/65">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col items-center gap-4">
+          <div
+            className={cn(
+              "flex items-center justify-center rounded-xl border border-border/50 bg-white p-4 shadow-md transition hover:shadow-lg dark:bg-white",
+              isZoomOpen ? "ring-2 ring-primary" : "",
+            )}
+          >
             <canvas
               ref={canvasRef}
               aria-label={`GS1 DataMatrix for ${labelText}`}
               role="img"
-              className="h-48 w-48"
+              className="h-56 w-56"
             />
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
             <Button
               type="button"
-              variant="ghost"
+              variant="secondary"
               size="sm"
               className="gap-1 text-xs"
               onClick={() => {
@@ -261,7 +247,7 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
                 <span aria-hidden="true">·</span>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   className="gap-1 text-xs"
                   onClick={() => {
@@ -280,83 +266,64 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
           ) : null}
         </div>
 
-        <div className="flex-1 space-y-4 text-sm">
-          <div className="grid gap-2 sm:grid-cols-3">
-            <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                GTIN
-              </p>
-              <p className="font-medium">{gtin}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                Lot
-              </p>
-              <p className="font-medium">{lot}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                Expiry
-              </p>
-              <p className="font-medium">{expiry}</p>
-            </div>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-2">
+        <div className="flex-1 space-y-5 text-sm">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <InfoChip label="GTIN" value={gtin} emphasis />
+            <InfoChip label="Lot" value={lot} />
+            <InfoChip label="Expiry" value={expiry} />
             {productName ? (
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Product
-                </p>
-                <p className="font-medium">{productName}</p>
-              </div>
+              <InfoChip label="Product" value={productName} />
             ) : null}
             {quantity !== undefined && quantity !== null ? (
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Quantity
-                </p>
-                <p className="font-medium">{quantity}</p>
-              </div>
+              <InfoChip label="Quantity" value={String(quantity)} />
             ) : null}
             {facilityName ? (
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Facility
-                </p>
-                <p className="font-medium">{facilityName}</p>
-              </div>
+              <InfoChip label="Facility" value={facilityName} />
             ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {actionButton(
-              <Printer size={ICON_SIZE} aria-hidden="true" />,
-              printLabel,
-              handlePrint,
-              isPrintDisabled,
-            )}
-            {actionButton(
-              <FileDown size={ICON_SIZE} aria-hidden="true" />,
-              "Download PDF",
-              handleDownloadPdf,
-              !batchId,
-            )}
-            {actionButton(
-              <Download size={ICON_SIZE} aria-hidden="true" />,
-              "Download PNG",
-              handleDownloadPng,
-            )}
-            {actionButton(
-              <Copy size={ICON_SIZE} aria-hidden="true" />,
-              "Copy GS1",
-              handleCopyGs1,
-            )}
-            {actionButton(
-              <ExternalLink size={ICON_SIZE} aria-hidden="true" />,
-              "Copy verify link",
-              handleCopyVerifyLink,
-            )}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Quick actions
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <IdentityActionButton
+                icon={<Printer size={ICON_SIZE} aria-hidden="true" />}
+                label={printLabel}
+                onClick={handlePrint}
+                disabled={isPrintDisabled}
+              />
+              <IdentityActionButton
+                icon={<FileDown size={ICON_SIZE} aria-hidden="true" />}
+                label="Download PDF"
+                onClick={handleDownloadPdf}
+                disabled={!batchId}
+              />
+              <IdentityActionButton
+                icon={<Download size={ICON_SIZE} aria-hidden="true" />}
+                label="Download PNG"
+                onClick={handleDownloadPng}
+              />
+              <IdentityActionButton
+                icon={<Copy size={ICON_SIZE} aria-hidden="true" />}
+                label="Copy GS1"
+                onClick={handleCopyGs1}
+              />
+              <IdentityActionButton
+                icon={<ExternalLink size={ICON_SIZE} aria-hidden="true" />}
+                label="Copy verify link"
+                onClick={handleCopyVerifyLink}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Raw GS1 string
+            </h3>
+            <pre className="max-h-24 overflow-auto rounded-xl border border-border/40 bg-muted/60 p-3 text-xs font-mono leading-relaxed text-foreground shadow-inner">
+              {labelText}
+            </pre>
           </div>
 
           {note ? (
@@ -364,7 +331,9 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
           ) : null}
 
           {feedback ? (
-            <p className="text-xs text-emerald-600">{feedback}</p>
+            <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-600">
+              {feedback}
+            </div>
           ) : null}
         </div>
       </div>
@@ -413,5 +382,52 @@ export function LabelIdentityZoomTrigger() {
     >
       Show code
     </button>
+  );
+}
+
+interface InfoChipProps {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}
+
+function InfoChip({ label, value, emphasis }: InfoChipProps) {
+  return (
+    <div className="space-y-1 rounded-xl border border-border/40 bg-muted/40 p-3 text-left shadow-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className={cn("text-sm font-medium text-foreground", emphasis && "text-base font-semibold tracking-tight text-primary")}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+interface IdentityActionButtonProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+function IdentityActionButton({
+  icon,
+  label,
+  onClick,
+  disabled,
+}: IdentityActionButtonProps) {
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      disabled={disabled}
+      onClick={onClick}
+      className="flex w-full items-center justify-between rounded-lg border border-border/50 bg-background text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
+    >
+      <span>{label}</span>
+      <span className="text-muted-foreground">{icon}</span>
+    </Button>
   );
 }
