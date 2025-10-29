@@ -282,7 +282,7 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
             ) : null}
           </div>
 
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Quick actions
             </h3>
@@ -316,22 +316,6 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
               />
             </div>
           </div>
-
-          <div className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Raw GS1 string
-            </h3>
-            <pre className="max-h-32 overflow-auto rounded-xl border border-border/40 bg-muted/70 p-3 text-xs font-mono leading-relaxed text-foreground shadow-inner">
-              {labelText}
-            </pre>
-          </div>
-
-          {note ? (
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {note}
-            </p>
-          ) : null}
-
           {feedback ? (
             <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-600">
               {feedback}
@@ -457,11 +441,11 @@ function IdentityActionButton({
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="secondary"
       size="sm"
       disabled={disabled}
       onClick={onClick}
-      className="flex min-w-[160px] flex-1 items-center justify-between gap-3 rounded-lg border-border/50 bg-background px-4 py-3 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 sm:w-auto"
+      className="flex min-w-[160px] flex-1 items-center justify-between gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 sm:w-auto dark:bg-muted dark:text-muted-foreground"
     >
       <span>{label}</span>
       <span className="text-muted-foreground">{icon}</span>
