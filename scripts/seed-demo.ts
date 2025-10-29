@@ -66,6 +66,8 @@ const demoPassword =
   process.env.DEMO_SEED_PASSWORD && process.env.DEMO_SEED_PASSWORD.trim().length > 0
     ? process.env.DEMO_SEED_PASSWORD
     : "TraceDemo!24";
+const skipSampleData =
+  process.env.DEMO_SEED_SKIP_SAMPLE_DATA === "true";
 
 function logStep(message: string) {
   console.log(`▪️ ${message}`);
@@ -667,28 +669,37 @@ async function main() {
     logStep(`User ready: ${user.email}`);
   }
 
-  const batchIdMap = new Map<string, string>();
-  for (const batch of batches) {
-    const id = await ensureBatch(batch, facilityIdMap, userIdMap);
-    batchIdMap.set(batch.key, id);
-    logStep(`Batch ready: ${batch.productName} (${batch.lot})`);
-  }
-
-  const previousHashMap = new Map<string, string>();
-  for (const event of events) {
-    await insertEvent(
-      event,
-      batchIdMap,
-      facilityIdMap,
-      userIdMap,
-      previousHashMap,
+  if (skipSampleData) {
+    logStep(
+      "Skipping sample batches, events, and receipts (DEMO_SEED_SKIP_SAMPLE_DATA=true).",
     );
-    logStep(`Event recorded (${event.type}) for ${event.batchKey}`);
-  }
+    logStep(
+      "Use the live workflow to create batches and push custody events to Hedera.",
+    );
+  } else {
+    const batchIdMap = new Map<string, string>();
+    for (const batch of batches) {
+      const id = await ensureBatch(batch, facilityIdMap, userIdMap);
+      batchIdMap.set(batch.key, id);
+      logStep(`Batch ready: ${batch.productName} (${batch.lot})`);
+    }
 
-  for (const receipt of receipts) {
-    await insertReceipt(receipt, batchIdMap, facilityIdMap);
-    logStep(`Receipt issued (${receipt.shortcode}) for ${receipt.batchKey}`);
+    const previousHashMap = new Map<string, string>();
+    for (const event of events) {
+      await insertEvent(
+        event,
+        batchIdMap,
+        facilityIdMap,
+        userIdMap,
+        previousHashMap,
+      );
+      logStep(`Event recorded (${event.type}) for ${event.batchKey}`);
+    }
+
+    for (const receipt of receipts) {
+      await insertReceipt(receipt, batchIdMap, facilityIdMap);
+      logStep(`Receipt issued (${receipt.shortcode}) for ${receipt.batchKey}`);
+    }
   }
 
   console.log("\nDemo access provisioned:");

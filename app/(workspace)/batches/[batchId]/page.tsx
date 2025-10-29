@@ -10,12 +10,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { serverEnv } from "@/lib/env/server";
-import { buildMirrorMessageUrl } from "@/lib/hedera/links";
+import {
+  buildHashscanMessageUrl,
+  buildHashscanTopicUrl,
+  buildMirrorMessageUrl,
+  buildMirrorTopicUrl,
+} from "@/lib/hedera/links";
 import { loadBatchTimeline } from "@/lib/hedera/timeline-service";
 import { type CustodyTimelineEntry } from "@/lib/hedera/timeline";
 import { decodeCursorParam, encodeCursorParam } from "@/lib/utils/cursor";
 import { formatConsensusTimestamp } from "@/lib/hedera/format";
 import { createClient } from "@/lib/supabase/server";
+import TopicLinksPanel from "./topic-links";
 
 export const dynamic = "force-dynamic";
 
@@ -190,6 +196,72 @@ export default async function BatchTimelinePage({
       "This batch is not linked to a Hedera topic. Set `batches.topic_id` or configure `HEDERA_TOPIC_ID` to enable timeline sync.";
   }
 
+  const latestLedgerEntry = timelineEntries.reduce<CustodyTimelineEntry | null>(
+    (accumulator, entry) =>
+      !accumulator || entry.sequenceNumber > accumulator.sequenceNumber
+        ? entry
+        : accumulator,
+    null,
+  );
+
+  const latestLedgerSequence = latestLedgerEntry?.sequenceNumber ?? null;
+  const latestLedgerTimestamp = latestLedgerEntry?.consensusTimestamp ?? null;
+
+  const latestDatabaseSequence = events.reduce<number | null>(
+    (accumulator, event) => {
+      if (typeof event.hcs_seq_no !== "number") {
+        return accumulator;
+      }
+
+      if (accumulator === null || event.hcs_seq_no > accumulator) {
+        return event.hcs_seq_no;
+      }
+
+      return accumulator;
+    },
+    null,
+  );
+
+  const latestSequence = latestLedgerSequence ?? latestDatabaseSequence;
+  const sequenceSource: "ledger" | "database" | null =
+    latestLedgerSequence !== null
+      ? "ledger"
+      : latestDatabaseSequence !== null
+        ? "database"
+        : null;
+
+  const latestConsensusDisplay =
+    sequenceSource === "ledger" && latestLedgerTimestamp
+      ? formatConsensusTimestamp(latestLedgerTimestamp)
+      : null;
+
+  const mirrorFeedUrl =
+    topicId !== null
+      ? buildMirrorTopicUrl(serverEnv.network, topicId, {
+          order: "desc",
+          limit: 5,
+        })
+      : null;
+
+  const hashscanTopicUrl =
+    topicId !== null
+      ? buildHashscanTopicUrl(serverEnv.network, topicId)
+      : null;
+
+  const hashscanMessageUrl =
+    sequenceSource === "ledger" && topicId && latestLedgerSequence !== null
+      ? buildHashscanMessageUrl(
+          serverEnv.network,
+          topicId,
+          latestLedgerSequence,
+        )
+      : null;
+
+  const hasDatabaseLedgerOnly =
+    !timelineError &&
+    timelineEntries.length === 0 &&
+    events.some((event) => event.hcs_seq_no !== null);
+
   return (
     <div className="space-y-10">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -250,15 +322,29 @@ export default async function BatchTimelinePage({
           </CardHeader>
           <CardContent className="space-y-6">
             {topicId ? (
-              <div className="rounded border border-border/60 bg-muted/40 p-3 text-xs">
-                <span className="text-muted-foreground">Topic ID</span>
-                <div className="font-mono text-foreground">{topicId}</div>
-              </div>
+              <TopicLinksPanel
+                topicId={topicId}
+                network={serverEnv.network}
+                latestSequence={latestSequence}
+                sequenceSource={sequenceSource}
+                latestConsensusDisplay={latestConsensusDisplay}
+                mirrorFeedUrl={mirrorFeedUrl}
+                hashscanTopicUrl={hashscanTopicUrl}
+                hashscanMessageUrl={hashscanMessageUrl}
+              />
             ) : null}
 
             {timelineError ? (
               <div className="rounded border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
                 {timelineError}
+              </div>
+            ) : null}
+
+            {hasDatabaseLedgerOnly ? (
+              <div className="rounded border border-amber-300/40 bg-amber-500/10 p-4 text-sm text-amber-900">
+                Database events reference Hedera sequence numbers, but no matching
+                Mirror Node messages were found yet. Confirm the topic ID is
+                correct and run the workflow live to produce on-ledger entries.
               </div>
             ) : null}
             {timelineNote && !timelineError ? (
