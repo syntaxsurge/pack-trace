@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
@@ -16,10 +16,6 @@ export const metadata: Metadata = {
   description:
     "Hedera-backed GS1 traceability for pharmaceutical packs across manufacturing, distribution, and dispensing.",
   manifest: "/manifest.webmanifest",
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0F172A" },
-    { media: "(prefers-color-scheme: light)", color: "#22C55E" },
-  ],
   openGraph: {
     title: "pack-trace",
     description:
@@ -52,6 +48,13 @@ export const metadata: Metadata = {
     description:
       "Hedera-backed GS1 traceability for pharmaceutical packs across manufacturing, distribution, and dispensing.",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0F172A" },
+    { media: "(prefers-color-scheme: light)", color: "#22C55E" },
+  ],
 };
 
 const geistSans = Geist({

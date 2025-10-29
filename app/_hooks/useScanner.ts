@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type ScannerSource = "barcode-detector" | "zxing";
+export type ScannerSource = "barcode-detector" | "zxing";
 
 type BarcodeDetectorResult = {
   rawValue: string;
@@ -58,7 +58,7 @@ const ZXING_NOT_FOUND_ERROR = "NotFoundException";
 
 type ReaderControls = import("@zxing/browser").IScannerControls;
 
-async function supportsBarcodeDetector(): Promise<boolean> {
+export async function supportsBarcodeDetector(): Promise<boolean> {
   if (typeof window === "undefined") {
     return false;
   }
@@ -400,4 +400,127 @@ export function useScanner(options: UseScannerOptions = {}) {
     restart,
     stop,
   };
+}
+
+async function decodeWithBarcodeDetector(
+  source: CanvasImageSource,
+): Promise<ScanResult | null> {
+  if (!(await supportsBarcodeDetector())) {
+    return null;
+  }
+
+  const Detector = (window as typeof window & {
+    BarcodeDetector?: BarcodeDetectorConstructor;
+  }).BarcodeDetector;
+
+  if (!Detector) {
+    return null;
+  }
+
+  const detector: BarcodeDetectorInstance = new Detector({
+    formats: ["data_matrix", "qr_code"],
+  });
+
+  try {
+    const results = await detector.detect(source);
+    const [first] = results;
+
+    if (!first?.rawValue) {
+      return null;
+    }
+
+    return {
+      rawValue: first.rawValue,
+      format: first.format ?? "unknown",
+      source: "barcode-detector",
+      timestamp: Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function decodeWithZxing(blob: Blob): Promise<ScanResult | null> {
+  const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] =
+    await Promise.all([import("@zxing/browser"), import("@zxing/library")]);
+
+  const hints = new Map();
+  hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+    BarcodeFormat.DATA_MATRIX,
+    BarcodeFormat.QR_CODE,
+  ]);
+
+  const reader = new BrowserMultiFormatReader(hints);
+  const objectUrl = URL.createObjectURL(blob);
+
+  try {
+    const result = await reader.decodeFromImageUrl(objectUrl);
+
+    return {
+      rawValue: result.getText(),
+      format: result.getBarcodeFormat().toString(),
+      source: "zxing",
+      timestamp: Date.now(),
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === ZXING_NOT_FOUND_ERROR) {
+      return null;
+    }
+    throw error;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+export async function decodeImageBlob(
+  blob: Blob,
+): Promise<ScanResult | null> {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  let bitmap: ImageBitmap | null = null;
+
+  try {
+    if ("createImageBitmap" in window) {
+      try {
+        bitmap = await createImageBitmap(blob, {
+          imageOrientation: "none",
+          premultiplyAlpha: "premultiply",
+        });
+      } catch {
+        bitmap = null;
+      }
+    }
+
+    if (bitmap) {
+      const detectorResult = await decodeWithBarcodeDetector(bitmap);
+      if (detectorResult) {
+        return detectorResult;
+      }
+    } else {
+      const img = document.createElement("img");
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () =>
+            reject(new Error("Failed to load image for decoding."));
+          img.src = objectUrl;
+        });
+        const detectorResult = await decodeWithBarcodeDetector(img);
+        if (detectorResult) {
+          return detectorResult;
+        }
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    }
+  } finally {
+    if (bitmap) {
+      bitmap.close();
+    }
+  }
+
+  return await decodeWithZxing(blob);
 }

@@ -17,9 +17,9 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 interface ReportsPageProps {
-  searchParams?: {
+  searchParams: Promise<{
     q?: string | string[];
-  };
+  }>;
 }
 
 interface BatchRow {
@@ -76,6 +76,7 @@ function normaliseSearchValue(input: string | string[] | undefined): string {
 }
 
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
+  const resolvedSearchParams = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -85,7 +86,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     redirect("/login");
   }
 
-  const searchValue = normaliseSearchValue(searchParams?.q);
+  const searchValue = normaliseSearchValue(resolvedSearchParams?.q);
 
   let query = supabase
     .from("batches")

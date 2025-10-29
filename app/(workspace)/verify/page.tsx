@@ -17,7 +17,7 @@ import type { VerifyState, VerifyStatus } from "./types";
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -104,8 +104,9 @@ function statusTone(status: VerifyStatus) {
 }
 
 export default async function VerifyPage({ searchParams }: PageProps) {
-  const codeParam = searchParams.code;
-  const cursorParam = searchParams.cursor;
+  const resolvedSearchParams = await searchParams;
+  const codeParam = resolvedSearchParams.code;
+  const cursorParam = resolvedSearchParams.cursor;
 
   const code =
     typeof codeParam === "string"
