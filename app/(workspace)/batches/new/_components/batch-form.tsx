@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LabelPreview } from "@/app/batches/new/_components/label-preview";
+import { LabelPreview } from "@/app/(workspace)/batches/new/_components/label-preview";
 import {
   batchLabelInputSchema,
   buildGs1DatamatrixPayload,
 } from "@/lib/labels/gs1";
-import { createBatchAction } from "@/app/batches/new/actions";
-import type { CreateBatchActionState } from "@/app/batches/new/actions";
+import { createBatchAction } from "@/app/(workspace)/batches/new/actions";
+import type { CreateBatchActionState } from "@/app/(workspace)/batches/new/actions";
 
 const EMPTY_FORM = {
   productName: "",

@@ -1,6 +1,20 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Boxes,
+  FileText,
+  Printer,
+  QrCode,
+  ReceiptText,
+  ScanLine,
+  ShieldCheck,
+} from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,6 +42,127 @@ type BatchSummary = {
   created_at: string;
   current_owner_facility_id: string | null;
 };
+
+type QuickAction = {
+  key: string;
+  title: string;
+  description: string;
+  href: Route;
+  icon: LucideIcon;
+};
+
+const BASE_ACTIONS: QuickAction[] = [
+  {
+    key: "scan",
+    title: "Log custody event",
+    description:
+      "Scan a GS1 DataMatrix to receive, hand over, or dispense a pack.",
+    href: "/scan",
+    icon: ScanLine,
+  },
+  {
+    key: "batches",
+    title: "Review batches",
+    description:
+      "Check recent batches, timelines, and Hedera sequence numbers.",
+    href: "/batches",
+    icon: Boxes,
+  },
+  {
+    key: "reports",
+    title: "Traceability reports",
+    description: "Export PDF or CSV custody evidence for auditors.",
+    href: "/reports",
+    icon: FileText,
+  },
+  {
+    key: "verify",
+    title: "Patient verify",
+    description:
+      "Share the public verify page so anyone can confirm authenticity.",
+    href: "/verify",
+    icon: ShieldCheck,
+  },
+];
+
+const ROLE_ACTIONS: Record<string, QuickAction[]> = {
+  MANUFACTURER: [
+    {
+      key: "create-batch",
+      title: "Create new batch",
+      description:
+        "Register GTIN, lot, expiry, and quantity before printing labels.",
+      href: "/batches/new",
+      icon: QrCode,
+    },
+    {
+      key: "print-labels",
+      title: "Print label sheet",
+      description:
+        "Download or print GS1 DataMatrix labels after creation.",
+      href: "/batches/new",
+      icon: Printer,
+    },
+  ],
+  DISTRIBUTOR: [
+    {
+      key: "handover",
+      title: "Receive & handover",
+      description:
+        "Scan inbound shipments and route them to the next facility.",
+      href: "/scan",
+      icon: Boxes,
+    },
+  ],
+  PHARMACY: [
+    {
+      key: "dispense",
+      title: "Dispense with receipt",
+      description:
+        "Verify authenticity, record dispense events, and issue receipts.",
+      href: "/scan",
+      icon: ReceiptText,
+    },
+  ],
+  AUDITOR: [
+    {
+      key: "audit",
+      title: "Download traceability certificate",
+      description:
+        "Export Hedera-backed PDFs or CSVs for the selected batch.",
+      href: "/reports",
+      icon: FileText,
+    },
+  ],
+  ADMIN: [
+    {
+      key: "manage-batches",
+      title: "Manage facility inventory",
+      description:
+        "Cross-check batches owned by facilities you administer.",
+      href: "/batches",
+      icon: Boxes,
+    },
+  ],
+  STAFF: [],
+};
+
+function uniqueActions(actions: QuickAction[]): QuickAction[] {
+  const seen = new Set<string>();
+  return actions.filter((action) => {
+    const id = action.href;
+    if (seen.has(id)) {
+      return false;
+    }
+    seen.add(id);
+    return true;
+  });
+}
+
+function normalizeRole(role: string | null | undefined): string {
+  if (!role) return "STAFF";
+  return role.toUpperCase();
+}
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "—";
@@ -113,6 +248,11 @@ export default async function DashboardPage() {
   const recentBatches =
     (batchListResponse.data as BatchSummary[] | null) ?? [];
   const recentEvents = eventListResponse.data ?? [];
+  const roleKey = normalizeRole(profile?.role);
+  const quickActions = uniqueActions([
+    ...(ROLE_ACTIONS[roleKey] ?? ROLE_ACTIONS.STAFF),
+    ...BASE_ACTIONS,
+  ]).slice(0, 6);
 
   const stats = [
     {
@@ -131,14 +271,55 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-10">
-      <section>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Welcome back{profile?.display_name ? `, ${profile.display_name}` : ""}.
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Use this dashboard to track custody events, confirm GS1 identifiers,
-          and audit batches synced to Hedera.
-        </p>
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Welcome back
+              {profile?.display_name ? `, ${profile.display_name}` : ""}.
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Track custody events, confirm GS1 identifiers, and audit every batch synced to Hedera.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="uppercase tracking-wide">
+              {roleKey}
+            </Badge>
+            {facility?.type ? (
+              <Badge variant="secondary" className="uppercase tracking-wide">
+                {facility.type}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {quickActions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Card key={action.key} className="shadow-sm transition hover:shadow-md">
+              <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <CardTitle className="text-base font-semibold">
+                  {action.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-muted-foreground">
+                <p>{action.description}</p>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={action.href}>
+                    Go
+                    <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </section>
 
       <section className="grid gap-4 sm:grid-cols-3">
@@ -238,7 +419,9 @@ export default async function DashboardPage() {
                     <span>{batch.qty} units</span>
                     <span>Expires {formatDate(batch.expiry)}</span>
                     <Link
-                      href={`/batches/${batch.id}`}
+                      href={{
+                        pathname: `/batches/${batch.id}`,
+                      }}
                       className="mt-2 text-primary hover:underline"
                     >
                       View timeline
@@ -280,7 +463,9 @@ export default async function DashboardPage() {
                   <div className="flex flex-col items-end text-xs text-muted-foreground">
                     <span>{formatDate(event.created_at)}</span>
                     <Link
-                      href={`/batches/${event.batch_id}`}
+                      href={{
+                        pathname: `/batches/${event.batch_id}`,
+                      }}
                       className="mt-2 text-primary hover:underline"
                     >
                       Open batch

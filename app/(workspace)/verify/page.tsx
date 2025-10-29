@@ -117,6 +117,7 @@ export default async function VerifyPage({ searchParams }: PageProps) {
   const cursor = decodeCursorParam(cursorParam);
   const state = await verifyCode({ code, cursor, limit: 10 });
   const tone = statusTone(state.status);
+  const statusLabel = state.status.toUpperCase();
   const statusMessage = resolveStatusMessage(state);
 
   return (
@@ -154,7 +155,7 @@ export default async function VerifyPage({ searchParams }: PageProps) {
           </CardHeader>
           <CardContent className="flex flex-1 flex-col justify-between gap-6">
             <div className="space-y-4">
-              <Badge className={tone.badge}>{status.toUpperCase()}</Badge>
+              <Badge className={tone.badge}>{statusLabel}</Badge>
               <p className={`text-sm ${tone.accent}`}>{statusMessage}</p>
 
               {state.parsed ? (

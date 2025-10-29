@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import { Camera, Loader2, RefreshCw } from "lucide-react";
 
@@ -55,13 +56,13 @@ export function VerifyClient({ state }: VerifyClientProps) {
       const trimmed = normalizeCode(nextCode);
 
       if (!trimmed) {
-        router.push(pathname);
+        router.push(pathname as Route);
         return;
       }
 
       const params = new URLSearchParams();
       params.set("code", trimmed);
-      router.push(`${pathname}?${params.toString()}`);
+      router.push(`${pathname}?${params.toString()}` as Route);
     },
     [pathname, router],
   );
@@ -83,7 +84,7 @@ export function VerifyClient({ state }: VerifyClientProps) {
 
   const handleClear = useCallback(() => {
     setManualCode("");
-    router.push(pathname);
+    router.push(pathname as Route);
   }, [pathname, router]);
 
   const {

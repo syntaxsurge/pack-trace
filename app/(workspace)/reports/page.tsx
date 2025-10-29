@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/server";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -164,57 +171,63 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border text-sm">
-                <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Product</th>
-                    <th className="px-4 py-3 text-left">GTIN</th>
-                    <th className="px-4 py-3 text-left">Lot</th>
-                    <th className="px-4 py-3 text-left">Expiry</th>
-                    <th className="px-4 py-3 text-left">Quantity</th>
-                    <th className="px-4 py-3 text-left">Current owner</th>
-                    <th className="px-4 py-3 text-left">Created</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border bg-background">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>GTIN</TableHead>
+                    <TableHead>Lot</TableHead>
+                    <TableHead>Expiry</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Current owner</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {batches.map((batch) => (
-                    <tr key={batch.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium">
+                    <TableRow key={batch.id}>
+                      <TableCell className="max-w-[220px] truncate font-medium">
                         {batch.product_name ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs">
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
                         {batch.gtin}
-                      </td>
-                      <td className="px-4 py-3 font-medium">{batch.lot}</td>
-                      <td className="px-4 py-3">{formatDate(batch.expiry)}</td>
-                      <td className="px-4 py-3">{formatQuantity(batch.qty)}</td>
-                      <td className="px-4 py-3">{resolveOwner(batch)}</td>
-                      <td className="px-4 py-3">{formatDate(batch.created_at)}</td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell className="font-medium">{batch.lot}</TableCell>
+                      <TableCell>{formatDate(batch.expiry)}</TableCell>
+                      <TableCell>{formatQuantity(batch.qty)}</TableCell>
+                      <TableCell>{resolveOwner(batch)}</TableCell>
+                      <TableCell>{formatDate(batch.created_at)}</TableCell>
+                      <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <a
-                            className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
-                            href={buildReportUrl(batch.id, "pdf")}
-                            target="_blank"
-                            rel="noreferrer"
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
                           >
-                            PDF
-                          </a>
-                          <a
-                            className={cn(buttonVariants({ size: "sm", variant: "ghost" }))}
-                            href={buildReportUrl(batch.id, "csv")}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            CSV
-                          </a>
+                            <a
+                              href={buildReportUrl(batch.id, "pdf")}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              PDF
+                            </a>
+                          </Button>
+                          <Button asChild variant="ghost" size="sm">
+                            <a
+                              href={buildReportUrl(batch.id, "csv")}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              CSV
+                            </a>
+                          </Button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

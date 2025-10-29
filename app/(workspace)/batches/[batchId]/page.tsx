@@ -319,7 +319,7 @@ export default async function BatchTimelinePage({
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <span>Running hash: {entry.runningHash}</span>
                   {topicId ? (
-                    <Link
+                    <a
                       href={buildMirrorMessageUrl(
                         serverEnv.network,
                         topicId,
@@ -330,7 +330,7 @@ export default async function BatchTimelinePage({
                       className="font-medium text-primary underline-offset-4 hover:underline"
                     >
                       View on Mirror Node
-                    </Link>
+                    </a>
                   ) : null}
                 </div>
                 <details className="mt-3 text-xs">
@@ -346,7 +346,12 @@ export default async function BatchTimelinePage({
 
             {nextCursor ? (
               <Link
-                href={`/batches/${batch.id}?cursor=${encodeCursorParam(nextCursor)}`}
+                href={{
+                  pathname: `/batches/${batch.id}`,
+                  query: {
+                    cursor: encodeCursorParam(nextCursor),
+                  },
+                }}
                 className="inline-flex items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
               >
                 Load older entries

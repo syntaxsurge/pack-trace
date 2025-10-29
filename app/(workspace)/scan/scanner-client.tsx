@@ -478,7 +478,7 @@ export function ScannerClient({
   const isFacilityDirectoryLoading = facilityDirectory.status === "loading";
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 pb-12">
+    <div className="flex flex-col gap-8 pb-12">
       <section className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Scan GS1 DataMatrix codes

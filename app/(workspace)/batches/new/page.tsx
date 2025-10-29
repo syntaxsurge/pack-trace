@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { BatchForm } from "@/app/batches/new/_components/batch-form";
+import { BatchForm } from "@/app/(workspace)/batches/new/_components/batch-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 
@@ -78,4 +78,3 @@ export default async function NewBatchPage() {
     </div>
   );
 }
-

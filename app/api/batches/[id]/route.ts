@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
@@ -8,8 +8,8 @@ const paramsSchema = z.object({
 });
 
 export async function GET(
-  _request: Request,
-  context: { params: { id: string } },
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createClient();
   const {
@@ -28,7 +28,8 @@ export async function GET(
     );
   }
 
-  const paramsParse = paramsSchema.safeParse(context.params);
+  const resolvedParams = await context.params;
+  const paramsParse = paramsSchema.safeParse(resolvedParams);
 
   if (!paramsParse.success) {
     return NextResponse.json(
