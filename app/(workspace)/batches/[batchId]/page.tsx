@@ -4,6 +4,10 @@ import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import {
+  buildGs1DatamatrixPayload,
+  type Gs1DatamatrixPayload,
+} from "@/lib/labels/gs1";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -181,6 +185,20 @@ export default async function BatchTimelinePage({
     notFound();
   }
 
+  let labelPayload: Gs1DatamatrixPayload | null = null;
+  try {
+    labelPayload = buildGs1DatamatrixPayload({
+      productName: batch.product_name ?? batch.gtin,
+      gtin: batch.gtin,
+      lot: batch.lot,
+      expiry: batch.expiry,
+      quantity: batch.qty,
+    });
+  } catch (error) {
+    console.error("label identity build failed", batch.id, error);
+    labelPayload = null;
+  }
+
   const eventsResponse = await supabase
     .from("events")
     .select(
@@ -302,20 +320,25 @@ export default async function BatchTimelinePage({
             Review on-ledger custody events for this batch, cross-referenced with database records.
           </p>
         </div>
-        {batch.label_text ? (
+        {labelPayload ? (
           <div className="lg:sticky lg:top-24">
             <LabelIdentityPanel
-              labelText={batch.label_text}
+              labelText={labelPayload.humanReadable}
               batchId={batch.id}
               productName={batch.product_name}
-              gtin={batch.gtin}
-              lot={batch.lot}
-              expiry={batch.expiry}
+              gtin={labelPayload.gtin14}
+              lot={labelPayload.lot}
+              expiry={labelPayload.expiryIsoDate}
               quantity={batch.qty}
               facilityName={null}
               userRole={userRole}
               printLabel="Reprint label"
+              note="Labels are generated as GS1 DataMatrix symbols with a fixed checksum. Reprint without scaling for reliable scans."
             />
+          </div>
+        ) : batch.label_text ? (
+          <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Stored label data is invalid. Update the batch details to regenerate the GS1 label.
           </div>
         ) : (
           <div className="rounded border border-dashed border-muted-foreground/40 p-4 text-sm text-muted-foreground">
