@@ -2,12 +2,9 @@
  * Example derived from:
  * https://docs.hedera.com/hedera/tutorials/consensus/submit-your-first-message
  */
-import {
-  AccountId,
-  Client,
-  PrivateKey,
-  TopicCreateTransaction,
-} from "@hashgraph/sdk";
+import { AccountId, Client, TopicCreateTransaction } from "@hashgraph/sdk";
+
+import { parseHederaPrivateKey } from "@/lib/hedera/keys";
 
 export async function exampleCreateTopic() {
   const operatorId = process.env.HEDERA_OPERATOR_ACCOUNT_ID;
@@ -20,7 +17,7 @@ export async function exampleCreateTopic() {
   const client = Client.forName("testnet");
   client.setOperator(
     AccountId.fromString(operatorId),
-    PrivateKey.fromString(operatorKey),
+    parseHederaPrivateKey(operatorKey),
   );
 
   const transaction = await new TopicCreateTransaction()

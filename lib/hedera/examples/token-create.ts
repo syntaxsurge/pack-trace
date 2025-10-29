@@ -5,11 +5,12 @@
 import {
   AccountId,
   Client,
-  PrivateKey,
   TokenCreateTransaction,
   TokenSupplyType,
   TokenType,
 } from "@hashgraph/sdk";
+
+import { parseHederaPrivateKey } from "@/lib/hedera/keys";
 
 export async function exampleCreateNftToken() {
   const operatorId = process.env.HEDERA_OPERATOR_ACCOUNT_ID;
@@ -20,10 +21,9 @@ export async function exampleCreateNftToken() {
   }
 
   const client = Client.forName("testnet");
-  client.setOperator(
-    AccountId.fromString(operatorId),
-    PrivateKey.fromString(operatorKey),
-  );
+  const parsedKey = parseHederaPrivateKey(operatorKey);
+
+  client.setOperator(AccountId.fromString(operatorId), parsedKey);
 
   const transaction = await new TokenCreateTransaction()
     .setTokenName("Pack Traceability Token")
@@ -33,7 +33,7 @@ export async function exampleCreateNftToken() {
     .setMaxSupply(10_000)
     .setTreasuryAccountId(AccountId.fromString(operatorId))
     .freezeWith(client)
-    .sign(PrivateKey.fromString(operatorKey));
+    .sign(parsedKey);
 
   const response = await transaction.execute(client);
   const receipt = await response.getReceipt(client);

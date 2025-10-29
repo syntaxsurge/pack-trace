@@ -1,6 +1,7 @@
-import { AccountId, Client, PrivateKey } from "@hashgraph/sdk";
+import { AccountId, Client } from "@hashgraph/sdk";
 
 import { serverEnv } from "@/lib/env/server";
+import { parseHederaPrivateKey } from "./keys";
 
 declare global {
   var __hederaClient: Client | undefined;
@@ -36,7 +37,7 @@ function createClient(): Client {
 
   client.setOperator(
     AccountId.fromString(operatorId),
-    PrivateKey.fromString(operatorKey),
+    parseHederaPrivateKey(operatorKey),
   );
 
   return client;
