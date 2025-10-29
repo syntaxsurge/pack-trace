@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -29,8 +30,13 @@ import {
   parseGs1Datamatrix,
   type ParsedGs1Datamatrix,
 } from "@/lib/labels/gs1";
-import { buildHashscanMessageUrl } from "@/lib/hedera/links";
-import { createClient } from "@/lib/supabase/client";
+import {
+  buildHashscanMessageUrl,
+  buildHashscanTopicUrl,
+  buildMirrorTopicUrl,
+} from "@/lib/hedera/links";
+import { formatConsensusTimestamp } from "@/lib/hedera/format";
+import type { VerifyState, VerifyStatus } from "@/lib/verify/types";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -65,31 +71,22 @@ type FacilityDirectoryState =
   | { status: "error"; message: string }
   | { status: "ready"; facilities: FacilityDirectoryEntry[] };
 
-interface BatchSummary {
-  id: string;
-  product_name: string | null;
-  gtin: string;
-  lot: string;
-  expiry: string;
-  qty: number;
-  current_owner_facility_id: string | null;
-  current_owner_facility: FacilitySummary | null;
-  topic_id: string | null;
-  created_at: string;
-}
-
 interface ScannerClientProps {
   userId: string;
   userRole: string;
   facility: FacilitySummary | null;
 }
 
-type BatchLookupState =
+type VerificationLookupState =
   | { status: "idle" }
   | { status: "loading"; key: string }
-  | { status: "not-found"; key: string }
   | { status: "error"; key: string; message: string }
-  | { status: "loaded"; key: string; batch: BatchSummary };
+  | { status: "loaded"; key: string; state: VerifyState };
+
+interface VerifyCacheEntry {
+  expiresAt: number;
+  state: VerifyState;
+}
 
 type ActionStatus =
   | { state: "idle" }
@@ -144,6 +141,7 @@ const MODE_META: Record<ScanMode, ModeConfig> = {
   },
 };
 
+const VERIFY_CACHE_TTL_MS = 45_000;
 const CLIENT_NETWORK = process.env.NEXT_PUBLIC_NETWORK ?? "testnet";
 const CLIENT_TOPIC_ID = process.env.NEXT_PUBLIC_HEDERA_TOPIC_ID ?? null;
 
@@ -164,12 +162,64 @@ function formatDate(value: string | null | undefined) {
   }
 }
 
+function getStatusMeta(status: VerifyStatus) {
+  switch (status) {
+    case "genuine":
+      return {
+        label: "Genuine",
+        icon: CheckCircle2,
+        badgeClass: "bg-emerald-500 text-white",
+        toneClass: "text-emerald-700",
+      };
+    case "recalled":
+      return {
+        label: "Recalled",
+        icon: ShieldAlert,
+        badgeClass: "bg-red-500 text-white",
+        toneClass: "text-red-600",
+      };
+    case "mismatch":
+      return {
+        label: "Mismatch",
+        icon: AlertCircle,
+        badgeClass: "bg-amber-500 text-black",
+        toneClass: "text-amber-600",
+      };
+    case "unknown":
+      return {
+        label: "Unknown",
+        icon: AlertCircle,
+        badgeClass: "bg-muted text-muted-foreground",
+        toneClass: "text-muted-foreground",
+      };
+    case "error":
+      return {
+        label: "Error",
+        icon: AlertCircle,
+        badgeClass: "bg-destructive text-destructive-foreground",
+        toneClass: "text-destructive",
+      };
+    case "idle":
+    default:
+      return {
+        label: "Ready",
+        icon: Loader2,
+        badgeClass: "bg-primary text-primary-foreground",
+        toneClass: "text-muted-foreground",
+      };
+  }
+}
+
 export function ScannerClient({
   userId,
   userRole,
   facility,
 }: ScannerClientProps) {
-  const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
+  const [verificationState, setVerificationState] =
+    useState<VerificationLookupState>({
+      status: "idle",
+    });
   const [scanPayload, setScanPayload] = useState<ParsedGs1Datamatrix | null>(
     null,
   );
@@ -177,9 +227,6 @@ export function ScannerClient({
   const [decodeError, setDecodeError] = useState<string | null>(null);
   const [actionState, setActionState] = useState<ActionStatus>({
     state: "idle",
-  });
-  const [batchState, setBatchState] = useState<BatchLookupState>({
-    status: "idle",
   });
   const [handoverFacilityId, setHandoverFacilityId] = useState("");
   const [facilityDirectory, setFacilityDirectory] =
@@ -194,10 +241,16 @@ export function ScannerClient({
   const [lastPastedText, setLastPastedText] = useState<string | null>(null);
   const [manualInput, setManualInput] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [miniTimelineOpen, setMiniTimelineOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const normalizedFacilitySearch = facilitySearch.trim();
   const modeMeta = MODE_META[mode];
   const ModeIcon = modeMeta.icon;
+  const verifyCacheRef = useRef<Map<string, VerifyCacheEntry>>(new Map());
+  const latestLookupKeyRef = useRef<string | null>(null);
+  const lastScannedCodeRef = useRef<string | null>(null);
+  const verifyAbortRef = useRef<AbortController | null>(null);
+  const prefetchedBatchIdsRef = useRef<Set<string>>(new Set());
 
   const {
     videoRef,
@@ -212,94 +265,187 @@ export function ScannerClient({
     enabled: mode === "camera",
   });
 
-  const lookupBatch = useCallback(
-    async (payload: ParsedGs1Datamatrix) => {
-      const lookupKey = `${payload.gtin}:${payload.lot}:${payload.expiryIsoDate}`;
-      setBatchState({ status: "loading", key: lookupKey });
+  const activeVerification =
+    verificationState.status === "loaded" ? verificationState.state : null;
+  const activeBatch = activeVerification?.batch ?? null;
+  const verificationStatus = activeVerification?.status ?? "idle";
+  const miniTimelineEntries = activeVerification?.timelineEntries ?? [];
+  const facilityMap = activeVerification?.facilities ?? {};
+  const parsed = activeVerification?.parsed ?? scanPayload;
+  const statusMeta = getStatusMeta(verificationStatus as VerifyStatus);
+  const topicId =
+    activeVerification?.topicId ?? activeBatch?.topic_id ?? CLIENT_TOPIC_ID;
 
-      const { data, error: queryError } = await supabase
-        .from("batches")
-        .select(
-          `
-            id,
-            product_name,
-            gtin,
-            lot,
-            expiry,
-            qty,
-            current_owner_facility_id,
-            topic_id,
-            created_at,
-            current_owner_facility:facilities!batches_current_owner_facility_id_fkey(
-              id,
-              name,
-              type
-            )
-          `,
-        )
-        .eq("gtin", payload.gtin)
-        .eq("lot", payload.lot)
-        .maybeSingle();
+  const resolveFacilityLabel = useCallback(
+    (facilityId: string | null | undefined) => {
+      if (!facilityId) {
+        return "—";
+      }
+      const info = facilityMap[facilityId];
+      if (!info) {
+        return facilityId;
+      }
+      const label = info.name ?? facilityId;
+      const typeSuffix = info.type ? ` • ${info.type}` : "";
+      if (label === facilityId) {
+        return `${label}${typeSuffix}`;
+      }
+      return `${label}${typeSuffix} • ${facilityId}`;
+    },
+    [facilityMap],
+  );
 
-      if (queryError && queryError.code !== "PGRST116") {
-        setBatchState({
+  const actionAvailability = useMemo(() => {
+    const defaults = {
+      canReceive: false,
+      receiveReason: "Scan a label to enable actions.",
+      canHandover: false,
+      handoverReason: "Scan a label to enable actions.",
+      canDispense: false,
+      dispenseReason: "Scan a label to enable actions.",
+    };
+
+    if (!activeBatch) {
+      return defaults;
+    }
+
+    const currentOwnerId = activeBatch.current_owner_facility_id;
+    const pendingRecipientId = activeBatch.pending_receipt_to_facility_id;
+    const facilityId = facility?.id ?? null;
+    const facilityType = facility?.type ?? null;
+    const auditor = userRole === "AUDITOR";
+
+    let canReceive = false;
+    let receiveReason: string | null = pendingRecipientId
+      ? "This handover is assigned to another facility."
+      : "No pending handover to receive.";
+
+    if (pendingRecipientId) {
+      if (auditor) {
+        canReceive = true;
+        receiveReason = null;
+      } else if (!facilityId) {
+        receiveReason = "Assign your user to a facility to receive packs.";
+      } else if (facilityId === pendingRecipientId) {
+        canReceive = true;
+        receiveReason = null;
+      }
+    }
+
+    let canHandover = false;
+    let handoverReason: string | null = null;
+
+    if (pendingRecipientId) {
+      handoverReason = "Waiting for the recipient to confirm the last handover.";
+    } else if (auditor) {
+      canHandover = true;
+    } else if (!facilityId) {
+      handoverReason = "Assign your user to a facility to hand over packs.";
+    } else if (facilityId !== currentOwnerId) {
+      handoverReason = "Only the current owner can hand over this batch.";
+    } else {
+      canHandover = true;
+    }
+
+    let canDispense = false;
+    let dispenseReason: string | null = null;
+
+    if (pendingRecipientId) {
+      dispenseReason = "Confirm the outstanding handover before dispensing.";
+    } else if (auditor) {
+      canDispense = true;
+    } else if (!facilityId) {
+      dispenseReason = "Assign your user to a facility to dispense packs.";
+    } else if (facilityId !== currentOwnerId) {
+      dispenseReason = "Only the current owner can dispense this batch.";
+    } else if (facilityType !== "PHARMACY") {
+      dispenseReason = "Only pharmacy facilities can dispense packs.";
+    } else {
+      canDispense = true;
+    }
+
+    return {
+      canReceive,
+      receiveReason,
+      canHandover,
+      handoverReason,
+      canDispense,
+      dispenseReason,
+    };
+  }, [activeBatch, facility?.id, facility?.type, userRole]);
+
+  const loadVerification = useCallback(
+    async (rawCode: string, lookupKey: string, options?: { force?: boolean }) => {
+      latestLookupKeyRef.current = lookupKey;
+      lastScannedCodeRef.current = rawCode;
+
+      if (!options?.force) {
+        const cached = verifyCacheRef.current.get(lookupKey);
+        if (cached && cached.expiresAt > Date.now()) {
+          setVerificationState({ status: "loaded", key: lookupKey, state: cached.state });
+          return;
+        }
+      }
+
+      verifyAbortRef.current?.abort();
+      const controller = new AbortController();
+      verifyAbortRef.current = controller;
+      setMiniTimelineOpen(false);
+      setVerificationState({ status: "loading", key: lookupKey });
+
+      try {
+        const params = new URLSearchParams();
+        params.set("code", rawCode);
+        params.set("limit", "3");
+
+        const response = await fetch(`/api/verify?${params.toString()}`, {
+          signal: controller.signal,
+        });
+
+        const payload = (await response.json().catch(() => null)) as
+          | { state?: VerifyState; error?: string }
+          | null;
+
+        if (!response.ok || !payload?.state) {
+          const message =
+            payload?.error ?? "Verification failed. Try scanning again.";
+          throw new Error(message);
+        }
+
+        if (latestLookupKeyRef.current !== lookupKey) {
+          return;
+        }
+
+        verifyCacheRef.current.set(lookupKey, {
+          state: payload.state,
+          expiresAt: Date.now() + VERIFY_CACHE_TTL_MS,
+        });
+
+        setVerificationState({
+          status: "loaded",
+          key: lookupKey,
+          state: payload.state,
+        });
+      } catch (loadError) {
+        if (controller.signal.aborted || latestLookupKeyRef.current !== lookupKey) {
+          return;
+        }
+
+        setVerificationState({
           status: "error",
           key: lookupKey,
-          message: queryError.message,
+          message:
+            loadError instanceof Error
+              ? loadError.message
+              : "Verification failed. Try scanning again.",
         });
-        return;
-      }
-
-      if (!data) {
-        setBatchState({ status: "not-found", key: lookupKey });
-        return;
-      }
-
-      const raw = data as Record<string, unknown>;
-      const rawOwner = (raw as { current_owner_facility?: unknown })
-        .current_owner_facility;
-
-      let currentOwner: FacilitySummary | null = null;
-
-      if (Array.isArray(rawOwner)) {
-        const ownerCandidate = rawOwner[0] as Record<string, unknown> | undefined;
-        if (ownerCandidate) {
-          currentOwner = {
-            id: String(ownerCandidate.id ?? ""),
-            name: (ownerCandidate.name as string | null) ?? null,
-            type: (ownerCandidate.type as string | null) ?? null,
-          };
+      } finally {
+        if (verifyAbortRef.current === controller) {
+          verifyAbortRef.current = null;
         }
-      } else if (rawOwner && typeof rawOwner === "object") {
-        const ownerCandidate = rawOwner as Record<string, unknown>;
-        currentOwner = {
-          id: String(ownerCandidate.id ?? ""),
-          name: (ownerCandidate.name as string | null) ?? null,
-          type: (ownerCandidate.type as string | null) ?? null,
-        };
       }
-
-      const batch: BatchSummary = {
-        id: String(raw.id ?? ""),
-        product_name: (raw.product_name as string | null) ?? null,
-        gtin: String(raw.gtin ?? ""),
-        lot: String(raw.lot ?? ""),
-        expiry: String(raw.expiry ?? ""),
-        qty: Number(raw.qty ?? 0),
-        current_owner_facility_id:
-          (raw.current_owner_facility_id as string | null) ?? null,
-        current_owner_facility: currentOwner,
-        topic_id: (raw.topic_id as string | null) ?? null,
-        created_at: String(raw.created_at ?? ""),
-      };
-
-      setBatchState({
-        status: "loaded",
-        key: lookupKey,
-        batch,
-      });
     },
-    [supabase],
+    [],
   );
 
   const handleDecodedValue = useCallback(
@@ -311,10 +457,12 @@ export function ScannerClient({
         setDecodeError(null);
         setLastSource(originLabel);
         setActionState({ state: "idle" });
-        void lookupBatch(parsed);
+        const lookupKey = `${parsed.gtin}:${parsed.lot}:${parsed.expiryIsoDate}`;
+        const code = parsed.raw ?? rawValue;
+        void loadVerification(code, lookupKey);
       } catch (parseError) {
         setScanPayload(null);
-        setBatchState({ status: "idle" });
+        setVerificationState({ status: "idle" });
         setLastSource(originLabel);
         setPayloadError(
           parseError instanceof Error
@@ -323,7 +471,7 @@ export function ScannerClient({
         );
       }
     },
-    [lookupBatch],
+    [loadVerification],
   );
 
   const decodeImage = useCallback(
@@ -602,7 +750,7 @@ export function ScannerClient({
           },
           body: JSON.stringify({
             batchId:
-              batchState.status === "loaded" ? batchState.batch.id : undefined,
+              activeBatch?.id ?? undefined,
             gs1: {
               gtin: scanPayload.gtin14,
               lot: scanPayload.lot,
@@ -666,8 +814,12 @@ export function ScannerClient({
           setFacilitySearch("");
         }
 
-        // Refresh batch snapshot to reflect updated ownership.
-        void lookupBatch(scanPayload);
+        const currentCode = lastScannedCodeRef.current;
+        const currentLookupKey = latestLookupKeyRef.current;
+
+        if (currentCode && currentLookupKey) {
+          void loadVerification(currentCode, currentLookupKey, { force: true });
+        }
       } catch (submitError) {
         setActionState({
           state: "error",
@@ -684,10 +836,11 @@ export function ScannerClient({
       facility?.id,
       handoverFacilityId,
       lastSource,
-      lookupBatch,
+      loadVerification,
       mode,
       scanPayload,
       source,
+      activeBatch?.id,
     ],
   );
 
@@ -735,6 +888,47 @@ export function ScannerClient({
       ) ?? null
     );
   }, [facilityDirectory, handoverFacilityId]);
+
+  const scanRequiredMessage = "Scan a label to enable actions.";
+
+  const receiveDisabled =
+    !scanPayload ||
+    isSubmitting === "RECEIVED" ||
+    !actionAvailability.canReceive;
+
+  const receiveHelper =
+    !scanPayload
+      ? scanRequiredMessage
+      : !actionAvailability.canReceive
+        ? actionAvailability.receiveReason ?? undefined
+        : undefined;
+
+  const handoverDisabled =
+    !scanPayload ||
+    isSubmitting === "HANDOVER" ||
+    !actionAvailability.canHandover ||
+    !handoverFacilityId;
+
+  const handoverHelper =
+    !scanPayload
+      ? scanRequiredMessage
+      : !actionAvailability.canHandover
+        ? actionAvailability.handoverReason ?? undefined
+        : !handoverFacilityId
+          ? "Select a destination facility."
+          : undefined;
+
+  const dispenseDisabled =
+    !scanPayload ||
+    isSubmitting === "DISPENSED" ||
+    !actionAvailability.canDispense;
+
+  const dispenseHelper =
+    !scanPayload
+      ? scanRequiredMessage
+      : !actionAvailability.canDispense
+        ? actionAvailability.dispenseReason ?? undefined
+        : undefined;
 
   const isFacilityDirectoryLoading = facilityDirectory.status === "loading";
 
@@ -1039,73 +1233,219 @@ export function ScannerClient({
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-semibold">
-                Batch lookup
+                Scan result
               </CardTitle>
               <CardDescription className="text-xs">
-                Matches the scanned GTIN + lot against tracked batches.
+                Custody verdict and the latest Hedera entries for this pack.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {batchState.status === "loading" ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  Fetching batch details…
-                </div>
-              ) : null}
-              {batchState.status === "error" ? (
-                <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div>{batchState.message}</div>
-                </div>
-              ) : null}
-              {batchState.status === "not-found" ? (
+            <CardContent className="space-y-4 text-sm">
+              {verificationState.status === "idle" ? (
                 <p className="text-xs text-muted-foreground">
-                  No batch was found for this GTIN and lot. Create it from the{" "}
-                  <Link className="underline" href="/batches/new">
-                    batch registration form
-                  </Link>{" "}
-                  before logging custody events.
+                  Scan a GS1 DataMatrix or paste the payload to verify the pack&apos;s provenance.
                 </p>
               ) : null}
-              {batchState.status === "loaded" ? (
-                <dl className="grid gap-3">
-                  <div>
-                    <dt className="text-xs font-semibold uppercase text-muted-foreground">
-                      Product
-                    </dt>
-                    <dd>{batchState.batch.product_name ?? "Unnamed batch"}</dd>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <dt className="font-semibold uppercase text-muted-foreground">
-                        Quantity
-                      </dt>
-                      <dd>{batchState.batch.qty}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold uppercase text-muted-foreground">
-                        Expires
-                      </dt>
-                      <dd>{formatDate(batchState.batch.expiry)}</dd>
-                    </div>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold uppercase text-muted-foreground">
-                      Current owner
-                    </dt>
-                    <dd className="flex flex-col gap-1">
-                      <span className="text-sm">
-                        {batchState.batch.current_owner_facility?.name ??
-                          "Unassigned"}
+              {verificationState.status === "loading" ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Verifying code…
+                </div>
+              ) : null}
+              {verificationState.status === "error" ? (
+                <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <div>{verificationState.message}</div>
+                </div>
+              ) : null}
+              {activeVerification ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                        statusMeta.badgeClass,
+                      )}
+                    >
+                      <statusMeta.icon
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          verificationStatus === "idle" ? "animate-spin" : "",
+                        )}
+                        aria-hidden="true"
+                      />
+                      {statusMeta.label}
+                    </span>
+                    {activeBatch?.topic_id ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        Topic {activeBatch.topic_id}
                       </span>
-                      {batchState.batch.current_owner_facility ? (
-                        <Badge variant="outline" className="w-fit text-[10px]">
-                          {batchState.batch.current_owner_facility.type}
-                        </Badge>
-                      ) : null}
-                    </dd>
+                    ) : null}
                   </div>
-                </dl>
+                  <p className={cn("text-sm", statusMeta.toneClass)}>
+                    {activeVerification.message}
+                  </p>
+                  <dl className="grid gap-3 text-xs sm:grid-cols-2">
+                    <div>
+                      <dt className="font-semibold uppercase text-muted-foreground">
+                        Product
+                      </dt>
+                      <dd className="text-sm">
+                        {activeBatch?.product_name ?? "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase text-muted-foreground">
+                        GTIN
+                      </dt>
+                      <dd className="font-mono text-sm">
+                        {parsed?.gtin14 ?? "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase text-muted-foreground">
+                        Lot
+                      </dt>
+                      <dd className="font-mono text-sm">
+                        {parsed?.lot ?? "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold uppercase text-muted-foreground">
+                        Expiry
+                      </dt>
+                      <dd className="font-mono text-sm">
+                        {parsed?.expiryIsoDate ?? "—"}
+                      </dd>
+                    </div>
+                    {activeBatch ? (
+                      <>
+                        <div>
+                          <dt className="font-semibold uppercase text-muted-foreground">
+                            Quantity
+                          </dt>
+                          <dd>{activeBatch.qty}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold uppercase text-muted-foreground">
+                            Current owner
+                          </dt>
+                          <dd className="flex flex-col gap-1 text-sm">
+                            <span>
+                              {activeBatch.current_owner_facility?.name ??
+                                "Unassigned"}
+                            </span>
+                            {activeBatch.current_owner_facility ? (
+                              <Badge variant="outline" className="w-fit text-[10px]">
+                                {activeBatch.current_owner_facility.type}
+                              </Badge>
+                            ) : null}
+                          </dd>
+                        </div>
+                      </>
+                    ) : null}
+                  </dl>
+                  {verificationStatus === "unknown" ? (
+                    <a
+                      href="mailto:support@packtrace.app?subject=Unknown%20pack%20scan"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      Report issue
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                    </a>
+                  ) : null}
+                  {miniTimelineEntries.length > 0 || activeVerification.timelineError ? (
+                    <details
+                      open={miniTimelineOpen}
+                      onToggle={(event) => setMiniTimelineOpen(event.currentTarget.open)}
+                      className="rounded-lg border border-muted/60 bg-muted/30 px-3 py-2 text-xs"
+                    >
+                      <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-primary">
+                        Mini timeline
+                        <span className="text-[11px] font-normal text-muted-foreground">
+                          Last {miniTimelineEntries.length} events
+                        </span>
+                      </summary>
+                      <div className="mt-3 space-y-2">
+                        {activeVerification.timelineError ? (
+                          <p className="text-xs text-destructive">
+                            {activeVerification.timelineError}
+                          </p>
+                        ) : miniTimelineEntries.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            No Hedera messages have been published for this pack yet.
+                          </p>
+                        ) : (
+                          miniTimelineEntries.map((entry) => (
+                            <div
+                              key={`${entry.sequenceNumber}-${entry.consensusTimestamp}`}
+                              className="rounded border border-muted bg-background/60 p-2"
+                            >
+                              <div className="flex items-center justify-between text-[11px] font-semibold">
+                                <span className="uppercase text-muted-foreground">
+                                  {entry.type}
+                                </span>
+                                <span className="font-mono text-[10px] text-muted-foreground">
+                                  Seq {entry.sequenceNumber}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-[11px] text-muted-foreground">
+                                {resolveFacilityLabel(entry.actor.facilityId)}
+                                {entry.to?.facilityId
+                                  ? ` → ${resolveFacilityLabel(entry.to.facilityId)}`
+                                  : ""}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {formatConsensusTimestamp(entry.consensusTimestamp, {
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                })}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                        <div className="flex flex-wrap items-center gap-3 pt-2 text-[11px]">
+                          {activeBatch ? (
+                            <Link
+                              href={`/batches/${activeBatch.id}`}
+                              className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+                            >
+                              View full timeline →
+                            </Link>
+                          ) : null}
+                          {activeVerification.topicId ? (
+                            <>
+                              <a
+                                href={buildHashscanTopicUrl(
+                                  CLIENT_NETWORK,
+                                  activeVerification.topicId,
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+                              >
+                                View on Hashscan
+                                <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                              </a>
+                              <a
+                                href={buildMirrorTopicUrl(
+                                  CLIENT_NETWORK,
+                                  activeVerification.topicId,
+                                  { order: "desc", limit: 50 },
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+                              >
+                                Mirror Node JSON
+                                <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                              </a>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
               ) : null}
             </CardContent>
           </Card>
@@ -1129,28 +1469,27 @@ export function ScannerClient({
               description="Confirm the pack arrived at your facility."
               action="RECEIVED"
               onClick={handleAction}
-              disabled={!scanPayload || isSubmitting === "RECEIVED"}
+              disabled={receiveDisabled}
               loading={isSubmitting === "RECEIVED"}
+              helperText={receiveHelper}
             />
             <ActionTile
               title="Handover"
               description="Transfer custody to another facility."
               action="HANDOVER"
               onClick={handleAction}
-              disabled={
-                !scanPayload ||
-                isSubmitting === "HANDOVER" ||
-                !handoverFacilityId
-              }
+              disabled={handoverDisabled}
               loading={isSubmitting === "HANDOVER"}
+              helperText={handoverHelper}
             />
             <ActionTile
               title="Dispense"
               description="Mark the pack as dispensed to a patient."
               action="DISPENSED"
               onClick={handleAction}
-              disabled={!scanPayload || isSubmitting === "DISPENSED"}
+              disabled={dispenseDisabled}
               loading={isSubmitting === "DISPENSED"}
+              helperText={dispenseHelper}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1409,6 +1748,7 @@ interface ActionTileProps {
   action: CustodyEventType;
   disabled?: boolean;
   loading?: boolean;
+  helperText?: string | null;
   onClick: (action: CustodyEventType) => void;
 }
 
@@ -1418,6 +1758,7 @@ function ActionTile({
   action,
   disabled,
   loading,
+  helperText,
   onClick,
 }: ActionTileProps) {
   return (
@@ -1433,6 +1774,9 @@ function ActionTile({
       <div className="space-y-1">
         <h3 className="text-sm font-semibold">{title}</h3>
         <p className="text-xs text-muted-foreground">{description}</p>
+        {helperText ? (
+          <p className="text-xs text-muted-foreground">{helperText}</p>
+        ) : null}
       </div>
       <div className="mt-4 flex items-center justify-between text-xs font-medium">
         <span className="uppercase text-muted-foreground">
