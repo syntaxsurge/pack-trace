@@ -2,13 +2,16 @@
  * Example derived from:
  * https://docs.hedera.com/hedera/tutorials/consensus/submit-your-first-message
  */
-import { AccountId, Client, TopicMessageSubmitTransaction } from "@hashgraph/sdk";
-
-import { parseHederaPrivateKey } from "@/lib/hedera/keys";
+import {
+  AccountId,
+  Client,
+  PrivateKey,
+  TopicMessageSubmitTransaction,
+} from "@hashgraph/sdk";
 
 export async function exampleSubmitMessage(topicId: string, message: string) {
   const operatorId = process.env.HEDERA_OPERATOR_ACCOUNT_ID;
-  const operatorKey = process.env.HEDERA_OPERATOR_PRIVATE_KEY;
+  const operatorKey = process.env.HEDERA_OPERATOR_DER_PRIVATE_KEY;
 
   if (!operatorId || !operatorKey) {
     throw new Error("Missing Hedera operator credentials in environment.");
@@ -17,7 +20,7 @@ export async function exampleSubmitMessage(topicId: string, message: string) {
   const client = Client.forName("testnet");
   client.setOperator(
     AccountId.fromString(operatorId),
-    parseHederaPrivateKey(operatorKey),
+    PrivateKey.fromString(operatorKey),
   );
 
   const transaction = await new TopicMessageSubmitTransaction()

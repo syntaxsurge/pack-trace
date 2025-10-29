@@ -921,7 +921,7 @@ export function ScannerClient({
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
                     Hedera submission unavailable. Event stored locally—configure
-                    HEDERA_OPERATOR_ACCOUNT_ID, HEDERA_OPERATOR_PRIVATE_KEY, and
+                    HEDERA_OPERATOR_ACCOUNT_ID, HEDERA_OPERATOR_DER_PRIVATE_KEY, and
                     HEDERA_TOPIC_ID to resume ledger replication.
                   </span>
                 </div>

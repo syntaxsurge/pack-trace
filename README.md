@@ -43,7 +43,7 @@ Auth triggers (`public.sync_user_profile`) synchronize `auth.users` changes into
 
 ## Hedera Integration
 
-- `lib/hedera/client.ts` – caches a server-side `Client` instance (mainnet/testnet/previewnet) using `HEDERA_OPERATOR_ACCOUNT_ID` and `HEDERA_OPERATOR_PRIVATE_KEY`.
+- `lib/hedera/client.ts` – caches a server-side `Client` instance (mainnet/testnet/previewnet) using `HEDERA_OPERATOR_ACCOUNT_ID` and `HEDERA_OPERATOR_DER_PRIVATE_KEY`.
 - `lib/hedera/topic.ts` – exposes `createTopic()` and `submitTopicMessage()` with message size validation and transaction metadata.
 - `lib/hedera/publisher.ts` – `publishCustodyEvent()` serialises a `CustodyEventPayload`, submits it, and returns the SHA-256 payload hash plus Hedera receipt fields for persistence.
 - `lib/hedera/mirror.ts` & `lib/hedera/timeline.ts` – fetch and decode Mirror Node topic messages, returning structured custody timeline entries and `links.next` pagination data.
@@ -104,12 +104,12 @@ timeline.entries.forEach((entry) => {
 
 1. **Create a Hedera developer account (testnet is free)**
    - Register at [portal.hedera.com/register](https://portal.hedera.com/register) and choose the Testnet environment.
-   - Copy the *Account ID*, *EVM address*, and *Hex Encoded Private Key* shown in the dashboard.
+   - Copy the *Account ID* and under **More Details** copy the *DER Encoded Private Key* (the Hex key on the main card will not work).
 2. **Populate environment variables**
    ```bash
    NEXT_PUBLIC_NETWORK=testnet
    HEDERA_OPERATOR_ACCOUNT_ID=0.0.xxxxxx      # Account ID from the portal
-   HEDERA_OPERATOR_PRIVATE_KEY=302e0201...    # Hex Encoded Private Key
+   HEDERA_OPERATOR_DER_PRIVATE_KEY=302e0201... # DER Encoded Private Key
    HEDERA_TOPIC_ID=0.0.yyyyyy                 # Leave empty until the next step
    ```
 3. **Create a topic for custody events**

@@ -1,7 +1,6 @@
-import { AccountId, Client } from "@hashgraph/sdk";
+import { AccountId, Client, PrivateKey } from "@hashgraph/sdk";
 
 import { serverEnv } from "@/lib/env/server";
-import { parseHederaPrivateKey } from "./keys";
 
 declare global {
   var __hederaClient: Client | undefined;
@@ -23,11 +22,11 @@ function createClient(): Client {
   ensureServerRuntime();
 
   const operatorId = serverEnv.hederaOperatorAccountId;
-  const operatorKey = serverEnv.hederaOperatorPrivateKey;
+  const operatorKey = serverEnv.hederaOperatorDerPrivateKey;
 
   if (!operatorId || !operatorKey) {
     throw new Error(
-      "Hedera operator credentials are not configured. Set HEDERA_OPERATOR_ACCOUNT_ID and HEDERA_OPERATOR_PRIVATE_KEY.",
+      "Hedera operator credentials are not configured. Set HEDERA_OPERATOR_ACCOUNT_ID and HEDERA_OPERATOR_DER_PRIVATE_KEY.",
     );
   }
 
@@ -37,7 +36,7 @@ function createClient(): Client {
 
   client.setOperator(
     AccountId.fromString(operatorId),
-    parseHederaPrivateKey(operatorKey),
+    PrivateKey.fromString(operatorKey),
   );
 
   return client;
