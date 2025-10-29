@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -124,11 +123,12 @@ export default async function BatchTimelinePage({
   params,
   searchParams,
 }: PageProps) {
-  const batchIdResult = z.string().uuid().safeParse(params.batchId);
-  if (!batchIdResult.success) {
+  const rawBatchId = params.batchId?.trim();
+
+  if (!rawBatchId || rawBatchId.toLowerCase() === "undefined") {
     notFound();
   }
-  const batchId = batchIdResult.data;
+  const batchId = rawBatchId;
 
   const supabase = await createClient();
   const {
@@ -147,8 +147,13 @@ export default async function BatchTimelinePage({
     .eq("id", batchId)
     .maybeSingle();
 
-  if (batchResponse.error && batchResponse.error.code !== "PGRST116") {
-    throw new Error(batchResponse.error.message);
+  if (batchResponse.error) {
+    if (batchResponse.error.code === "22P02") {
+      notFound();
+    }
+    if (batchResponse.error.code !== "PGRST116") {
+      throw new Error(batchResponse.error.message);
+    }
   }
 
   const batch = (batchResponse.data as BatchRecord | null) ?? null;
