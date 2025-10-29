@@ -283,7 +283,7 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
           </div>
 
           <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground dark:text-white/90">
               Quick actions
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -445,10 +445,10 @@ function IdentityActionButton({
       size="sm"
       disabled={disabled}
       onClick={onClick}
-      className="flex min-w-[160px] flex-1 items-center justify-between gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 sm:w-auto dark:bg-muted dark:text-muted-foreground"
+      className="flex min-w-[160px] flex-1 items-center justify-between gap-3 rounded-lg border border-border/40 bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 sm:w-auto dark:bg-zinc-800 dark:text-white"
     >
       <span>{label}</span>
-      <span className="text-muted-foreground">{icon}</span>
+      <span className="text-muted-foreground dark:text-white/80">{icon}</span>
     </Button>
   );
 }
