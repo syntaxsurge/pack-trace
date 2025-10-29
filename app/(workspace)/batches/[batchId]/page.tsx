@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -123,6 +124,12 @@ export default async function BatchTimelinePage({
   params,
   searchParams,
 }: PageProps) {
+  const batchIdResult = z.string().uuid().safeParse(params.batchId);
+  if (!batchIdResult.success) {
+    notFound();
+  }
+  const batchId = batchIdResult.data;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -137,7 +144,7 @@ export default async function BatchTimelinePage({
     .select(
       "id, product_name, gtin, lot, expiry, qty, label_text, current_owner_facility_id, topic_id, created_at",
     )
-    .eq("id", params.batchId)
+    .eq("id", batchId)
     .maybeSingle();
 
   if (batchResponse.error && batchResponse.error.code !== "PGRST116") {

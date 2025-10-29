@@ -105,7 +105,7 @@ export async function createBatchAction(
       created_by_user_id: user.id,
     })
     .select("id")
-    .maybeSingle();
+    .single();
 
   if (insertResponse.error) {
     return {
@@ -114,12 +114,15 @@ export async function createBatchAction(
     };
   }
 
+  const newBatchId = insertResponse.data.id;
+
   revalidatePath("/dashboard");
+  revalidatePath("/batches");
 
   return {
     status: "success",
     message: "Batch created and label generated.",
     errors: {},
-    batchId: insertResponse.data?.id ?? undefined,
+    batchId: newBatchId,
   };
 }

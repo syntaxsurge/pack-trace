@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -188,8 +189,17 @@ export function BatchForm({ facilityName }: BatchFormProps) {
             {state.errors.form ? (
               <p className="text-sm text-destructive">{state.errors.form}</p>
             ) : null}
-            {state.status === "success" && state.message ? (
-              <p className="text-sm text-emerald-600">{state.message}</p>
+            {state.status === "success" ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                <span>{state.message ?? "Batch created."}</span>
+                {state.batchId ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/batches/${state.batchId}`}>
+                      View timeline
+                    </Link>
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
 
             <div className="flex justify-end">
