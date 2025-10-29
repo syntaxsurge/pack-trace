@@ -212,9 +212,9 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
     userRole?.toUpperCase() === "AUDITOR" || !batchId || !!renderError;
 
   return (
-    <div className="space-y-6 rounded-2xl border border-border/60 bg-card/80 p-6 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/65">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex flex-col items-center gap-4">
+    <div className="space-y-6 rounded-2xl border border-border/60 bg-background p-6 shadow-xl dark:bg-muted/40">
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        <div className="flex w-full flex-col items-center gap-4 xl:max-w-xs">
           <div
             className={cn(
               "flex items-center justify-center rounded-xl border border-border/50 bg-white p-4 shadow-md transition hover:shadow-lg dark:bg-white",
@@ -266,19 +266,19 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
           ) : null}
         </div>
 
-        <div className="flex-1 space-y-5 text-sm">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex-1 space-y-6 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <InfoChip label="GTIN" value={gtin} emphasis />
             <InfoChip label="Lot" value={lot} />
             <InfoChip label="Expiry" value={expiry} />
             {productName ? (
-              <InfoChip label="Product" value={productName} />
+              <InfoChip label="Product" value={productName} multiline />
             ) : null}
             {quantity !== undefined && quantity !== null ? (
               <InfoChip label="Quantity" value={String(quantity)} />
             ) : null}
             {facilityName ? (
-              <InfoChip label="Facility" value={facilityName} />
+              <InfoChip label="Facility" value={facilityName} multiline />
             ) : null}
           </div>
 
@@ -286,7 +286,7 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Quick actions
             </h3>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="flex flex-wrap gap-2">
               <IdentityActionButton
                 icon={<Printer size={ICON_SIZE} aria-hidden="true" />}
                 label={printLabel}
@@ -321,7 +321,7 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Raw GS1 string
             </h3>
-            <pre className="max-h-24 overflow-auto rounded-xl border border-border/40 bg-muted/60 p-3 text-xs font-mono leading-relaxed text-foreground shadow-inner">
+            <pre className="max-h-32 overflow-auto rounded-xl border border-border/40 bg-muted/70 p-3 text-xs font-mono leading-relaxed text-foreground shadow-inner">
               {labelText}
             </pre>
           </div>
@@ -389,15 +389,23 @@ interface InfoChipProps {
   label: string;
   value: string;
   emphasis?: boolean;
+  multiline?: boolean;
 }
 
-function InfoChip({ label, value, emphasis }: InfoChipProps) {
+function InfoChip({ label, value, emphasis, multiline }: InfoChipProps) {
   return (
-    <div className="space-y-1 rounded-xl border border-border/40 bg-muted/40 p-3 text-left shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="space-y-1 rounded-xl border border-border/40 bg-muted/30 p-3 text-left shadow-sm dark:bg-muted/50">
+      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className={cn("text-sm font-medium text-foreground", emphasis && "text-base font-semibold tracking-tight text-primary")}>
+      <p
+        className={cn(
+          "text-sm font-medium text-foreground",
+          emphasis && "text-base font-semibold tracking-tight text-primary",
+          multiline ? "whitespace-normal break-words" : "truncate",
+        )}
+        title={value}
+      >
         {value}
       </p>
     </div>
@@ -420,11 +428,11 @@ function IdentityActionButton({
   return (
     <Button
       type="button"
-      variant="secondary"
+      variant="outline"
       size="sm"
       disabled={disabled}
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-lg border border-border/50 bg-background text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
+      className="flex min-w-[160px] flex-1 items-center justify-between gap-3 rounded-lg border-border/50 bg-background px-4 py-3 text-sm font-medium shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60 sm:w-auto"
     >
       <span>{label}</span>
       <span className="text-muted-foreground">{icon}</span>

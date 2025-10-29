@@ -208,7 +208,7 @@ export function BatchForm({ facilityName }: BatchFormProps) {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span>{state.message ?? "Batch created."}</span>
                   {state.batchId ? (
-                    <Button asChild size="sm" variant="outline">
+                    <Button asChild size="sm" variant="secondary">
                       <Link href={`/batches/${state.batchId}`} prefetch={false}>
                         View timeline
                       </Link>
