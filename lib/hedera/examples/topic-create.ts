@@ -10,8 +10,8 @@ import {
 } from "@hashgraph/sdk";
 
 export async function exampleCreateTopic() {
-  const operatorId = process.env.HEDERA_OPERATOR_ID;
-  const operatorKey = process.env.HEDERA_OPERATOR_KEY;
+  const operatorId = process.env.HEDERA_OPERATOR_ACCOUNT_ID;
+  const operatorKey = process.env.HEDERA_OPERATOR_PRIVATE_KEY;
 
   if (!operatorId || !operatorKey) {
     throw new Error("Missing Hedera operator credentials in environment.");
@@ -31,4 +31,3 @@ export async function exampleCreateTopic() {
 
   return receipt.topicId?.toString();
 }
-

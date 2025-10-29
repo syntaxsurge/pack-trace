@@ -21,12 +21,12 @@ function ensureServerRuntime() {
 function createClient(): Client {
   ensureServerRuntime();
 
-  const operatorId = serverEnv.hederaOperatorId;
-  const operatorKey = serverEnv.hederaOperatorKey;
+  const operatorId = serverEnv.hederaOperatorAccountId;
+  const operatorKey = serverEnv.hederaOperatorPrivateKey;
 
   if (!operatorId || !operatorKey) {
     throw new Error(
-      "Hedera operator credentials are not configured. Set HEDERA_OPERATOR_ID and HEDERA_OPERATOR_KEY.",
+      "Hedera operator credentials are not configured. Set HEDERA_OPERATOR_ACCOUNT_ID and HEDERA_OPERATOR_PRIVATE_KEY.",
     );
   }
 

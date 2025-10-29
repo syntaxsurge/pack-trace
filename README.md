@@ -43,7 +43,7 @@ Auth triggers (`public.sync_user_profile`) synchronize `auth.users` changes into
 
 ## Hedera Integration
 
-- `lib/hedera/client.ts` – caches a server-side `Client` instance (mainnet/testnet/previewnet) using `HEDERA_OPERATOR_ID` and `HEDERA_OPERATOR_KEY`.
+- `lib/hedera/client.ts` – caches a server-side `Client` instance (mainnet/testnet/previewnet) using `HEDERA_OPERATOR_ACCOUNT_ID` and `HEDERA_OPERATOR_PRIVATE_KEY`.
 - `lib/hedera/topic.ts` – exposes `createTopic()` and `submitTopicMessage()` with message size validation and transaction metadata.
 - `lib/hedera/publisher.ts` – `publishCustodyEvent()` serialises a `CustodyEventPayload`, submits it, and returns the SHA-256 payload hash plus Hedera receipt fields for persistence.
 - `lib/hedera/mirror.ts` & `lib/hedera/timeline.ts` – fetch and decode Mirror Node topic messages, returning structured custody timeline entries and `links.next` pagination data.
@@ -96,9 +96,31 @@ timeline.entries.forEach((entry) => {
    ```
 
 2. **Configure environment variables**
-   - Copy `.env.example` to `.env.local` and fill in project-specific values.
+   - Copy `.env.example` to `.env.local` (or `.env`) and fill in project-specific values.
    - Required keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
-   - Optional integrations: Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`) and Africa's Talking (`AT_API_KEY`, `AT_USERNAME`).
+   - Optional integrations: Hedera (see section below), Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`), and Africa's Talking (`AT_API_KEY`, `AT_USERNAME`).
+
+### Hedera credentials & topic setup
+
+1. **Create a Hedera developer account (testnet is free)**
+   - Register at [portal.hedera.com/register](https://portal.hedera.com/register) and choose the Testnet environment.
+   - Copy the *Account ID*, *EVM address*, and *Hex Encoded Private Key* shown in the dashboard.
+2. **Populate environment variables**
+   ```bash
+   NEXT_PUBLIC_NETWORK=testnet
+   HEDERA_OPERATOR_ACCOUNT_ID=0.0.xxxxxx      # Account ID from the portal
+   HEDERA_OPERATOR_PRIVATE_KEY=302e0201...    # Hex Encoded Private Key
+   HEDERA_TOPIC_ID=0.0.yyyyyy                 # Leave empty until the next step
+   ```
+3. **Create a topic for custody events**
+   ```bash
+   pnpm tsx lib/hedera/examples/topic-create.ts "pack-trace topic"
+   ```
+   The script requires the environment variables above and returns a topic ID like `0.0.987654`. Add that value to `HEDERA_TOPIC_ID`.
+4. **Verify (optional)**
+   - Paste the topic ID into [HashScan](https://hashscan.io/testnet) to confirm it exists.
+   - Run `pnpm tsx lib/hedera/examples/topic-submit.ts 0.0.987654 "hello world"` to publish a test message.
+5. **Restart the dev server** so `/scan`, batch timelines, and `/verify` can append and read Hedera messages.
 
 3. **Apply database schema**
    - Run the SQL migrations under `supabase/migrations` (`000_init.sql`, `001_add_product_name_to_batches.sql`, etc.) against your Supabase project (`supabase db push` or Supabase Studio SQL editor).
