@@ -29,6 +29,7 @@ import {
   parseGs1Datamatrix,
   type ParsedGs1Datamatrix,
 } from "@/lib/labels/gs1";
+import { buildHashscanMessageUrl } from "@/lib/hedera/links";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -37,6 +38,7 @@ import {
   Camera,
   CheckCircle2,
   ClipboardPaste,
+  ExternalLink,
   ImageUp,
   Loader2,
   PencilLine,
@@ -141,6 +143,9 @@ const MODE_META: Record<ScanMode, ModeConfig> = {
     icon: PencilLine,
   },
 };
+
+const CLIENT_NETWORK = process.env.NEXT_PUBLIC_NETWORK ?? "testnet";
+const CLIENT_TOPIC_ID = process.env.NEXT_PUBLIC_HEDERA_TOPIC_ID ?? null;
 
 function formatStatus(status: string): string {
   return status.replace(/_/g, " ").toLowerCase();
@@ -614,14 +619,29 @@ export function ScannerClient({
           }),
         });
 
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              event: {
+                id: string;
+                hcs_tx_id: string;
+                hcs_seq_no: number | null;
+                hcs_running_hash: string | null;
+                payload_hash: string;
+              };
+              hederaDelivered?: boolean;
+              warning?: string | null;
+            }
+          | { error?: string }
+          | null;
+
+        if (!response.ok || !payload || !('event' in payload)) {
           const message =
-            payload?.error ?? `Failed to record ${formatStatus(actionType)}.`;
+            (payload as { error?: string } | null)?.error ??
+            `Failed to record ${formatStatus(actionType)}.`;
           throw new Error(message);
         }
 
-        const payload = (await response.json()) as {
+        const successPayload = payload as {
           event: {
             id: string;
             hcs_tx_id: string;
@@ -636,9 +656,9 @@ export function ScannerClient({
         setActionState({
           state: "success",
           action: actionType,
-          receipt: payload.event,
-          hederaDelivered: payload.hederaDelivered ?? false,
-          warning: payload.warning,
+          receipt: successPayload.event,
+          hederaDelivered: successPayload.hederaDelivered ?? false,
+          warning: successPayload.warning,
         });
 
         if (actionType === "HANDOVER") {
@@ -1299,16 +1319,59 @@ export function ScannerClient({
             </div>
           ) : null}
           {actionState.state === "success" ? (
-            <div className="flex flex-col gap-2 text-xs">
-              <div className="flex flex-wrap items-center gap-2 text-green-600">
-                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                <span>
-                  Event recorded (sequence{" "}
-                  {actionState.receipt.hcs_seq_no ?? "pending"}).
-                </span>
-                <code className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] text-green-700">
-                  {actionState.receipt.payload_hash.slice(0, 12)}…
-                </code>
+            <div className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-emerald-700">
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Event recorded.</span>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                    <span className="rounded bg-emerald-600/10 px-1.5 py-0.5 font-mono text-emerald-800">
+                      Seq {actionState.receipt.hcs_seq_no ?? "pending"}
+                    </span>
+                    {actionState.receipt.hcs_tx_id ? (
+                      <span className="rounded bg-emerald-600/10 px-1.5 py-0.5 font-mono text-emerald-800">
+                        {actionState.receipt.hcs_tx_id}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 text-[11px] font-mono">
+                  <span className="text-muted-foreground">Hash</span>
+                  <span className="break-all text-emerald-800">
+                    {actionState.receipt.payload_hash}
+                  </span>
+                </div>
+                {actionState.receipt.hcs_running_hash ? (
+                  <div className="flex flex-col gap-1 text-[11px] font-mono">
+                    <span className="text-muted-foreground">Running hash</span>
+                    <span className="break-all text-emerald-800">
+                      {actionState.receipt.hcs_running_hash}
+                    </span>
+                  </div>
+                ) : null}
+                {actionState.hederaDelivered &&
+                actionState.receipt.hcs_seq_no !== null &&
+                ((batchState.status === "loaded" && batchState.batch.topic_id) ||
+                  CLIENT_TOPIC_ID) ? (
+                  <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                    <span className="text-muted-foreground">Explorer</span>
+                    <a
+                      href={buildHashscanMessageUrl(
+                        CLIENT_NETWORK,
+                        (batchState.status === "loaded" && batchState.batch.topic_id
+                          ? batchState.batch.topic_id
+                          : CLIENT_TOPIC_ID) ?? "",
+                        actionState.receipt.hcs_seq_no,
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-emerald-700 underline-offset-4 hover:underline"
+                    >
+                      View on Hashscan
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                    </a>
+                  </div>
+                ) : null}
               </div>
               {!actionState.hederaDelivered ? (
                 <div className="flex items-start gap-2 text-amber-600">
