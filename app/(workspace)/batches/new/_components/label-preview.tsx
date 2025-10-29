@@ -46,8 +46,8 @@ export function LabelPreview({
           bcid: "gs1datamatrix",
           text: payload.humanReadable,
           scale: 6,
-          paddingwidth: 6,
-          paddingheight: 6,
+          paddingwidth: 0,
+          paddingheight: 0,
           includetext: false,
           backgroundcolor: "FFFFFF",
         });
