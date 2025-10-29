@@ -35,9 +35,23 @@ const pwa = withPWA({
 });
 
 const nextConfig: NextConfig = {
+  typedRoutes: true,
   experimental: {
-    typedRoutes: true,
-  },
+    serverComponentsExternalPackages: [
+      "@foliojs-fork/fontkit",
+      "@foliojs-fork/pdfkit",
+      "pdfmake",
+      "unicode-trie",
+    ],
+    outputFileTracingIncludes: {
+      "/api/report": [
+        "./node_modules/.pnpm/@foliojs-fork+fontkit@*/node_modules/@foliojs-fork/fontkit/data.trie",
+      ],
+      "/api/batches/[id]/label": [
+        "./node_modules/.pnpm/@foliojs-fork+fontkit@*/node_modules/@foliojs-fork/fontkit/data.trie",
+      ],
+    },
+  } as NextConfig["experimental"],
 };
 
 export default pwa(nextConfig);

@@ -6,16 +6,18 @@ import {
   batchLabelInputSchema,
   buildGs1DatamatrixPayload,
 } from "@/lib/labels/gs1";
-import { buildBatchLabelPdf } from "@/lib/labels/pdf";
+import { buildBatchLabelPdf, renderDatamatrixPng } from "@/lib/labels/pdf";
 
 const paramsSchema = z.object({
   id: z.string().uuid(),
 });
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const formatParam =
+    request.nextUrl.searchParams.get("format")?.toLowerCase() ?? "pdf";
   const supabase = await createClient();
   const {
     data: { user },
@@ -104,6 +106,21 @@ export async function GET(
     ? (batch.facility[0] as { name?: string } | undefined)
     : null;
 
+  const filenameBase = `pack-trace-label-${gs1Payload.gtin14}-${gs1Payload.lot}`;
+
+  if (formatParam === "png") {
+    const png = await renderDatamatrixPng(gs1Payload);
+    const body = new Uint8Array(png);
+
+    return new NextResponse(body, {
+      headers: {
+        "Content-Type": "image/png",
+        "Content-Disposition": `inline; filename="${filenameBase}.png"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
   const pdf = await buildBatchLabelPdf({
     payload: gs1Payload,
     productName: parsePayload.data.productName,
@@ -111,13 +128,10 @@ export async function GET(
     facilityName: facilityRecord?.name ?? null,
   });
 
-  const filename = `pack-trace-label-${gs1Payload.gtin14}-${gs1Payload.lot}.pdf`;
-  const body = new Uint8Array(pdf);
-
-  return new NextResponse(body, {
+  return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${filenameBase}.pdf"`,
       "Cache-Control": "no-store",
     },
   });

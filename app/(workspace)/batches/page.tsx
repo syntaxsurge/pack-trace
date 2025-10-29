@@ -300,6 +300,15 @@ export default async function BatchesPage() {
                               Timeline
                             </Link>
                           </Button>
+                          <Button asChild variant="outline" size="sm">
+                            <a
+                              href={`/api/batches/${batch.id}/label?format=png`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Label PNG
+                            </a>
+                          </Button>
                           <Button asChild variant="ghost" size="sm">
                             <a
                               href={buildReportUrl(batch.id, "pdf")}

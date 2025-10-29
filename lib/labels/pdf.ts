@@ -4,7 +4,9 @@ import type { Content, ContentImage, TDocumentDefinitions } from "pdfmake/interf
 import { getPdfPrinter } from "@/lib/pdf/printer";
 import type { Gs1DatamatrixPayload } from "./gs1";
 
-async function renderDatamatrixPng(payload: Gs1DatamatrixPayload): Promise<Buffer> {
+export async function renderDatamatrixPng(
+  payload: Gs1DatamatrixPayload,
+): Promise<Buffer> {
   return await new Promise<Buffer>((resolve, reject) => {
     try {
       bwipjs.toBuffer(
@@ -12,8 +14,8 @@ async function renderDatamatrixPng(payload: Gs1DatamatrixPayload): Promise<Buffe
           bcid: "gs1datamatrix",
           text: payload.humanReadable,
           scale: 6,
-          paddingwidth: 0,
-          paddingheight: 0,
+          paddingwidth: 2,
+          paddingheight: 2,
           includetext: false,
           backgroundcolor: "FFFFFF",
         },

@@ -277,10 +277,12 @@ export default async function BatchTimelinePage({
     timelineEntries.length === 0 &&
     events.some((event) => event.hcs_seq_no !== null);
 
+  const labelImageUrl = `/api/batches/${batch.id}/label?format=png`;
+
   return (
     <div className="space-y-10">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <h1 className="text-3xl font-semibold tracking-tight">
             Batch timeline
           </h1>
@@ -289,9 +291,45 @@ export default async function BatchTimelinePage({
             database records.
           </p>
           {batch.label_text ? (
-            <p className="font-mono text-xs text-muted-foreground">
-              {batch.label_text}
-            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex h-40 w-40 items-center justify-center rounded-lg border bg-white p-3 shadow-sm dark:bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={labelImageUrl}
+                    alt={`GS1 DataMatrix for ${batch.label_text}`}
+                    className="h-full w-full object-contain"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={labelImageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Open PNG
+                  </a>
+                  <span className="text-xs text-muted-foreground">·</span>
+                  <a
+                    href={`/api/batches/${batch.id}/label`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    Download PDF
+                  </a>
+                </div>
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p className="font-mono text-[11px]">{batch.label_text}</p>
+                <p>
+                  Labels are generated as GS1 DataMatrix symbols (not QR codes).
+                  They require a light margin—print without scaling for reliable scans.
+                </p>
+              </div>
+            </div>
           ) : null}
         </div>
         <div className="space-y-2 text-sm">
