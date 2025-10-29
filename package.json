@@ -6,8 +6,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "db:push": "supabase db push --db-url \"$SUPABASE_DB_URL\"",
-    "db:reset": "supabase db reset --db-url \"$SUPABASE_DB_URL\" --yes && pnpm seed:demo",
+    "db:push": "tsx -r dotenv/config scripts/db-push.ts",
+    "db:reset": "tsx -r dotenv/config scripts/db-reset.ts",
     "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
