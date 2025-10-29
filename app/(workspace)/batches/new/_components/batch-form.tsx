@@ -194,7 +194,7 @@ export function BatchForm({ facilityName }: BatchFormProps) {
                 <span>{state.message ?? "Batch created."}</span>
                 {state.batchId ? (
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/batches/${state.batchId}`}>
+                    <Link href={`/batches/${state.batchId}`} prefetch={false}>
                       View timeline
                     </Link>
                   </Button>

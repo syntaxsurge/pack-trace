@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -123,12 +124,11 @@ export default async function BatchTimelinePage({
   params,
   searchParams,
 }: PageProps) {
-  const rawBatchId = params.batchId?.trim();
-
-  if (!rawBatchId || rawBatchId.toLowerCase() === "undefined") {
+  const batchIdResult = z.string().uuid().safeParse(params.batchId);
+  if (!batchIdResult.success) {
     notFound();
   }
-  const batchId = rawBatchId;
+  const batchId = batchIdResult.data;
 
   const supabase = await createClient();
   const {
@@ -450,6 +450,7 @@ export default async function BatchTimelinePage({
                     cursor: encodeCursorParam(nextCursor),
                   },
                 }}
+                prefetch={false}
                 className="inline-flex items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
               >
                 Load older entries

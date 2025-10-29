@@ -422,6 +422,7 @@ export default async function DashboardPage() {
                       href={{
                         pathname: `/batches/${batch.id}`,
                       }}
+                      prefetch={false}
                       className="mt-2 text-primary hover:underline"
                     >
                       View timeline
@@ -466,6 +467,7 @@ export default async function DashboardPage() {
                       href={{
                         pathname: `/batches/${event.batch_id}`,
                       }}
+                      prefetch={false}
                       className="mt-2 text-primary hover:underline"
                     >
                       Open batch

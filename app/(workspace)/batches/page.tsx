@@ -295,6 +295,7 @@ export default async function BatchesPage() {
                               href={{
                                 pathname: `/batches/${batch.id}`,
                               }}
+                              prefetch={false}
                             >
                               Timeline
                             </Link>
