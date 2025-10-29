@@ -49,6 +49,7 @@ export function LabelPreview({
           paddingwidth: 6,
           paddingheight: 6,
           includetext: false,
+          backgroundcolor: "FFFFFF",
         });
 
         setRenderError(null);
@@ -142,7 +143,7 @@ export function LabelPreview({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col items-center gap-4">
-          <div className="flex h-64 w-64 items-center justify-center rounded-lg border bg-muted">
+          <div className="flex h-64 w-64 items-center justify-center rounded-lg border bg-muted dark:bg-white">
             {payload ? (
               <canvas
                 ref={canvasRef}

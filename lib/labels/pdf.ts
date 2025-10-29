@@ -15,6 +15,7 @@ async function renderDatamatrixPng(payload: Gs1DatamatrixPayload): Promise<Buffe
           paddingwidth: 6,
           paddingheight: 6,
           includetext: false,
+          backgroundcolor: "FFFFFF",
         },
         (error: Error | null, png: Buffer | undefined) => {
           if (error || !png) {
