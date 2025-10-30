@@ -1,0 +1,75 @@
+[
+  { "id": "tab1", "type": "tab", "label": "coldchain-alerts" },
+  {
+    "id": "mqtt_in",
+    "type": "mqtt in",
+    "z": "tab1",
+    "name": "tempC in",
+    "topic": "trace/batches/+/sensors/tempC",
+    "qos": "1",
+    "datatype": "auto",
+    "broker": "emqx"
+  },
+  {
+    "id": "json1",
+    "type": "json",
+    "z": "tab1",
+    "name": "parse",
+    "property": "payload",
+    "action": "obj"
+  },
+  {
+    "id": "fn1",
+    "type": "function",
+    "z": "tab1",
+    "name": "window state (10m > 8°C)",
+    "func": "const THRESHOLD = 8;\nconst WINDOW = 10 * 60 * 1000;\nconst matches = msg.topic.match(/^trace\\/batches\\/([^/]+)/);\nif (!matches) {\n  return [null, null];\n}\nconst batchId = matches[1];\nconst now = Date.now();\nconst store = context.get(\"store\") ?? {};\nconst state = store[batchId] ?? {\n  breach: false,\n  startedAt: null,\n  samples: []\n};\nconst value = Number(msg.payload.value);\nif (Number.isNaN(value)) {\n  return [null, null];\n}\nstate.samples.push({ ts: new Date().toISOString(), value, t: now });\nstate.samples = state.samples.filter((sample) => now - sample.t < 15 * 60 * 1000);\nif (value > THRESHOLD) {\n  if (!state.breach) {\n    state.breach = true;\n    state.startedAt = now;\n  }\n} else {\n  state.breach = false;\n  state.startedAt = null;\n}\nif (state.breach && state.startedAt && now - state.startedAt >= WINDOW) {\n  const windowSamples = state.samples.filter((sample) => sample.t >= state.startedAt);\n  const payload = {\n    batchId,\n    windowMinutes: 10,\n    maxTemp: THRESHOLD,\n    samples: windowSamples\n  };\n  context.set(\"store\", { ...store, [batchId]: { breach: false, startedAt: null, samples: state.samples } });\n  return [\n    {\n      ...msg,\n      topic: `trace/batches/${batchId}/alerts/coldchain`,\n      payload\n    },\n    null\n  ];\n}\ncontext.set(\"store\", { ...store, [batchId]: state });\nreturn [null, null];",
+    "outputs": 2
+  },
+  {
+    "id": "http_ai",
+    "type": "http request",
+    "z": "tab1",
+    "name": "AI summary",
+    "method": "POST",
+    "ret": "obj",
+    "url": "http://app:3000/api/ai/summarize-coldchain",
+    "headers": "{\"content-type\":\"application/json\"}",
+    "paytoqs": "ignore"
+  },
+  {
+    "id": "build_alert",
+    "type": "function",
+    "z": "tab1",
+    "name": "build alert payload",
+    "func": "const body = msg.payload;\nconst summary = body?.summary ?? body?.text ?? \"Cold-chain excursion detected.\";\nmsg.payload = {\n  v: 1,\n  kind: \"COLDCHAIN_EXCURSION\",\n  summary,\n  windowMinutes: body?.windowMinutes ?? 10,\n  maxTemp: body?.maxTemp ?? 8,\n  samples: body?.samples ?? [],\n  ts: new Date().toISOString()\n};\nreturn msg;"
+  },
+  {
+    "id": "mqtt_out",
+    "type": "mqtt out",
+    "z": "tab1",
+    "name": "publish alert",
+    "topic": "",
+    "qos": "1",
+    "retain": "",
+    "broker": "emqx"
+  },
+  { "id": "wire1", "source": "mqtt_in", "sourcePort": 0, "target": "json1", "targetPort": 0 },
+  { "id": "wire2", "source": "json1", "sourcePort": 0, "target": "fn1", "targetPort": 0 },
+  { "id": "wire3", "source": "fn1", "sourcePort": 0, "target": "http_ai", "targetPort": 0 },
+  { "id": "wire4", "source": "http_ai", "sourcePort": 0, "target": "build_alert", "targetPort": 0 },
+  { "id": "wire5", "source": "build_alert", "sourcePort": 0, "target": "mqtt_out", "targetPort": 0 },
+  {
+    "id": "emqx",
+    "type": "mqtt-broker",
+    "name": "emqx",
+    "broker": "emqx",
+    "port": "1883",
+    "tls": "",
+    "clientid": "",
+    "usetls": false,
+    "protocolVersion": "4",
+    "keepalive": "60",
+    "cleansession": true
+  }
+]

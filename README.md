@@ -8,7 +8,7 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 - GS1 DataMatrix encoding for `(01) GTIN`, `(10) LOT`, `(17) EXP` using bwip-js ([guideline](https://www.gs1.org/docs/barcodes/GS1_DataMatrix_Guideline.pdf)).
 - Supabase Postgres schema with facility-scoped row-level security ([RLS reference](https://supabase.com/docs/guides/auth/row-level-security)).
 - Custody scanner integrates `/api/facilities` directory results for handover selection, removing the need to memorise facility UUIDs.
-- Next.js App Router UI with authenticated dashboard, invite and recovery flows, and marketing landing page.
+- supOS CE Unified Namespace captures custody events, temperature telemetry, and cold-chain alerts to power live operator dashboards.
 
 ## Architecture
 
@@ -22,6 +22,15 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 - REST API surface delivers batch creation (`POST /api/batches`), batch snapshots (`GET /api/batches/:id`), DataMatrix label exports (`GET /api/batches/:id/label`), custody timelines (`GET /api/timeline`), verification (`GET /api/verify`), dispensing receipts (`POST /api/dispense`), and traceability reports (`GET /api/report`).
 - Supabase auth cookie middleware guards all private routes except `/`, `/login`, and `/auth/*`.
 - Hedera helpers in `lib/hedera` wrap the JavaScript SDK for client creation, topic management, message publishing, and Mirror Node reads.
+
+### Operations Bus
+- `lib/supos/*` establishes an MQTT publisher that mirrors custody events into the supOS CE broker (default `mqtt://localhost:1883`) with QoS 1 delivery semantics.
+- The Supabase trigger `enqueue_supos_outbox` persists every custody event into `supos_outbox`, allowing `npm run worker:supos` to replay messages until the broker acknowledges publication.
+- Topics follow a Unified Namespace shape under `trace/batches/{batchId}/...`:
+  - `events` – custody state transitions (`MANUFACTURED`, `HANDOVER`, `RECEIVED`, `DISPENSED`, `RECALLED`) enriched with Hedera hashes.
+  - `sensors/tempC` – live temperature telemetry streamed by shop-floor devices or the provided simulator.
+  - `alerts/coldchain` – Node-RED Event Flow emits cold-chain excursions enriched with AI-generated summaries.
+- supOS converts these topics into modeled entities with History enabled so Dashboards can read from the internal TimescaleDB/Postgres store without additional ETL.
 
 ### Distributed Ledger
 - Hedera Consensus Service topic IDs recorded on `batches.topic_id`.
@@ -137,6 +146,20 @@ timeline.entries.forEach((entry) => {
    npm run typecheck
    ```
 
+6. **supOS configuration**
+   1. Start supOS CE (Docker compose bundle) and sign in with an administrator account.
+   2. Run `npm run worker:supos` to stream custody events into the supOS broker, and (optionally) feed temperature data using an MQTT simulator or hardware device.
+   3. In supOS:
+      - Navigate to **Namespace → Unmodeled Topics**, convert the following paths, and enable History for each:
+        - `trace/batches/{batchId}/events`
+        - `trace/batches/{batchId}/sensors/tempC`
+        - `trace/batches/{batchId}/alerts/coldchain`
+      - Open **Dashboards** and create the `Traceability Live` board with three widgets backed by the default Postgres source:
+        - Table: recent custody events (order by `payload->>'ts'` desc, filter by batch ID if desired).
+        - Line chart: temperature (`payload->>'value'`) over the last two hours.
+        - Table or stat: cold-chain alerts including the generated summary and breach window.
+      - Import or build the Node-RED Event Flow that monitors `sensors/tempC` for sustained readings above 8 C and publishes alert payloads (see `flows/supos-eventflow-coldchain.json`).
+
 ## Auth & Routing
 
 - `/login` shares the Supabase password flow with `/auth/login` for compatibility with email links.
@@ -170,6 +193,7 @@ timeline.entries.forEach((entry) => {
 - `npm run lint` – eslint quality checks.
 - `npm run typecheck` – TypeScript without emit (required before merging).
 - `npm run seed:demo` – provision demo facilities, accounts, batches, events, and receipts in Supabase (requires service role key).
+- `npm run worker:supos` – drain the Supabase `supos_outbox` table and publish each record to the supOS MQTT broker with QoS 1 retries.
 
 ## Demo data & credentials
 
@@ -196,3 +220,5 @@ Each account uses the shared demo password (or the override you provided) and ca
 - Hedera Mirror Node: [topics REST API](https://docs.hedera.com/hedera/sdks-and-apis/rest-api/topics)
 - GS1 DataMatrix guideline: [PDF](https://www.gs1.org/docs/barcodes/GS1_DataMatrix_Guideline.pdf)
 - Supabase Next.js quickstart: [guide](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
+- supOS CE: [GitHub](https://github.com/FREEZONEX/supOS-CE)
+- supOS community docs: [Namespace modeling](https://suposcommunity.vercel.app/category/namespace), [Dashboards](https://suposcommunity.vercel.app/Basic%20Guides/UNS%20Data%20Integration/Dashboards)
