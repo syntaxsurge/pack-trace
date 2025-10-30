@@ -15,6 +15,9 @@ const serverSchema = z.object({
   AT_API_KEY: z.string().optional(),
   AT_USERNAME: z.string().optional(),
   DEMO_SEED_PASSWORD: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().min(1).optional(),
+  OPENAI_API_URL: z.string().url().optional(),
 });
 
 const parsed = serverSchema.parse(process.env);
@@ -33,4 +36,7 @@ export const serverEnv = {
   africasTalkingUsername: parsed.AT_USERNAME ?? null,
   network: clientEnv.network,
   demoSeedPassword: parsed.DEMO_SEED_PASSWORD ?? null,
+  openAiApiKey: parsed.OPENAI_API_KEY ?? null,
+  openAiModel: parsed.OPENAI_MODEL ?? "gpt-4o-mini",
+  openAiApiUrl: parsed.OPENAI_API_URL ?? "https://api.openai.com/v1/chat/completions",
 } as const;
