@@ -52,6 +52,21 @@ function formatRawMessage(value: string): string {
   }
 }
 
+function formatFacility(
+  facilities: VerifyState["facilities"],
+  facilityId: string | null | undefined,
+): string {
+  if (!facilityId) return "—";
+  const record = facilities[facilityId];
+  if (!record) return facilityId;
+  const label = record.name ?? facilityId;
+  const typeSuffix = record.type ? ` • ${record.type}` : "";
+  if (label === facilityId) {
+    return `${label}${typeSuffix}`;
+  }
+  return `${label}${typeSuffix} • ${facilityId}`;
+}
+
 function resolveStatusMessage(state: VerifyState): string {
   if (state.message) {
     return state.message;
@@ -62,6 +77,8 @@ function resolveStatusMessage(state: VerifyState): string {
       return "Scan a GS1 DataMatrix barcode or paste the encoded value to verify the pack.";
     case "genuine":
       return "This pack matches a custody record published to Hedera.";
+    case "recalled":
+      return "This pack has an active recall notice. Quarantine immediately.";
     case "unknown":
       return "No custody record was found for the provided identifiers.";
     case "mismatch":
@@ -78,6 +95,11 @@ function statusTone(status: VerifyStatus) {
       return {
         badge: "bg-emerald-500 text-white",
         accent: "text-emerald-600",
+      };
+    case "recalled":
+      return {
+        badge: "bg-red-500 text-white",
+        accent: "text-red-600",
       };
     case "mismatch":
       return {
@@ -194,8 +216,27 @@ export default async function VerifyPage({ searchParams }: PageProps) {
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Current owner</dt>
-                    <dd className="font-medium">
-                      {state.batch.current_owner_facility_id ?? "—"}
+                    <dd className="space-y-1 text-sm">
+                      <span className="font-medium">
+                        {state.batch.current_owner_facility?.name ??
+                          state.batch.current_owner_facility?.id ??
+                          state.batch.current_owner_facility_id ??
+                          "—"}
+                      </span>
+                      {state.batch.current_owner_facility?.type ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          {state.batch.current_owner_facility.type}
+                        </Badge>
+                      ) : null}
+                      {state.batch.current_owner_facility?.id ? (
+                        <span className="block font-mono text-xs text-muted-foreground">
+                          {state.batch.current_owner_facility.id}
+                        </span>
+                      ) : state.batch.current_owner_facility_id ? (
+                        <span className="block font-mono text-xs text-muted-foreground">
+                          {state.batch.current_owner_facility_id}
+                        </span>
+                      ) : null}
                     </dd>
                   </div>
                   <div>
@@ -274,7 +315,7 @@ export default async function VerifyPage({ searchParams }: PageProps) {
                     <div>
                       <dt className="text-muted-foreground">Actor facility</dt>
                       <dd className="font-medium">
-                        {entry.actor.facilityId}
+                        {formatFacility(state.facilities, entry.actor.facilityId)}
                       </dd>
                     </div>
                     <div>
@@ -286,7 +327,7 @@ export default async function VerifyPage({ searchParams }: PageProps) {
                     <div>
                       <dt className="text-muted-foreground">Recipient facility</dt>
                       <dd className="font-medium">
-                        {entry.to?.facilityId ?? "—"}
+                        {formatFacility(state.facilities, entry.to?.facilityId ?? null)}
                       </dd>
                     </div>
                     <div>

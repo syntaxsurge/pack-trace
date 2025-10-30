@@ -6,7 +6,14 @@ export type VerifyStatus =
   | "genuine"
   | "unknown"
   | "mismatch"
+  | "recalled"
   | "error";
+
+export interface VerifyFacility {
+  id: string;
+  name: string | null;
+  type: string | null;
+}
 
 export interface VerifyBatch {
   id: string;
@@ -18,6 +25,9 @@ export interface VerifyBatch {
   label_text: string | null;
   topic_id: string | null;
   current_owner_facility_id: string | null;
+  current_owner_facility: VerifyFacility | null;
+  pending_receipt_to_facility_id: string | null;
+  last_handover_event_id: string | null;
   created_at: string;
 }
 
@@ -33,4 +43,5 @@ export interface VerifyState {
   timelineError: string | null;
   nextCursor: string | null;
   topicId: string | null;
+  facilities: Record<string, VerifyFacility>;
 }

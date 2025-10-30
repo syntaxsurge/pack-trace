@@ -149,19 +149,6 @@ function formatStatus(status: string): string {
   return status.replace(/_/g, " ").toLowerCase();
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return "—";
-  try {
-    return new Intl.DateTimeFormat("en", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
 function getStatusMeta(status: VerifyStatus) {
   switch (status) {
     case "genuine":
@@ -275,6 +262,7 @@ export function ScannerClient({
   const statusMeta = getStatusMeta(verificationStatus as VerifyStatus);
   const topicId =
     activeVerification?.topicId ?? activeBatch?.topic_id ?? CLIENT_TOPIC_ID;
+  const StatusIcon = statusMeta.icon;
 
   const resolveFacilityLabel = useCallback(
     (facilityId: string | null | undefined) => {
@@ -380,6 +368,7 @@ export function ScannerClient({
       lastScannedCodeRef.current = rawCode;
 
       if (!options?.force) {
+        setMiniTimelineOpen(false);
         const cached = verifyCacheRef.current.get(lookupKey);
         if (cached && cached.expiresAt > Date.now()) {
           setVerificationState({ status: "loaded", key: lookupKey, state: cached.state });
@@ -652,6 +641,15 @@ export function ScannerClient({
   }, [decodeImage, handleDecodedValue, mode]);
 
   useEffect(() => {
+    if (
+      verificationState.status === "loaded" &&
+      verificationState.state.status === "recalled"
+    ) {
+      setMiniTimelineOpen(true);
+    }
+  }, [verificationState]);
+
+  useEffect(() => {
     let isActive = true;
     const controller = new AbortController();
 
@@ -832,7 +830,6 @@ export function ScannerClient({
       }
     },
     [
-      batchState,
       facility?.id,
       handoverFacilityId,
       lastSource,
@@ -889,6 +886,10 @@ export function ScannerClient({
     );
   }, [facilityDirectory, handoverFacilityId]);
 
+  const hasBatch = Boolean(activeBatch);
+  const verificationMessage =
+    activeVerification?.message ??
+    "No custody record was found for the provided identifiers.";
   const scanRequiredMessage = "Scan a label to enable actions.";
 
   const receiveDisabled =
@@ -899,7 +900,9 @@ export function ScannerClient({
   const receiveHelper =
     !scanPayload
       ? scanRequiredMessage
-      : !actionAvailability.canReceive
+      : !hasBatch && activeVerification
+        ? verificationMessage
+        : !actionAvailability.canReceive
         ? actionAvailability.receiveReason ?? undefined
         : undefined;
 
@@ -912,7 +915,9 @@ export function ScannerClient({
   const handoverHelper =
     !scanPayload
       ? scanRequiredMessage
-      : !actionAvailability.canHandover
+      : !hasBatch && activeVerification
+        ? verificationMessage
+        : !actionAvailability.canHandover
         ? actionAvailability.handoverReason ?? undefined
         : !handoverFacilityId
           ? "Select a destination facility."
@@ -926,11 +931,59 @@ export function ScannerClient({
   const dispenseHelper =
     !scanPayload
       ? scanRequiredMessage
-      : !actionAvailability.canDispense
+      : !hasBatch && activeVerification
+        ? verificationMessage
+        : !actionAvailability.canDispense
         ? actionAvailability.dispenseReason ?? undefined
         : undefined;
 
+  const actionSummaries = useMemo(
+    () => [
+      {
+        label: "Receive",
+        ready: !receiveDisabled,
+        helper: receiveHelper,
+      },
+      {
+        label: "Handover",
+        ready: !handoverDisabled,
+        helper: handoverHelper,
+      },
+      {
+        label: "Dispense",
+        ready: !dispenseDisabled,
+        helper: dispenseHelper,
+      },
+    ],
+    [
+      receiveDisabled,
+      receiveHelper,
+      handoverDisabled,
+      handoverHelper,
+      dispenseDisabled,
+      dispenseHelper,
+    ],
+  );
+
   const isFacilityDirectoryLoading = facilityDirectory.status === "loading";
+
+  useEffect(() => {
+    const batchId = activeBatch?.id;
+    if (!batchId) {
+      return;
+    }
+    if (prefetchedBatchIdsRef.current.has(batchId)) {
+      return;
+    }
+    prefetchedBatchIdsRef.current.add(batchId);
+    router.prefetch(`/batches/${batchId}`);
+  }, [activeBatch?.id, router]);
+
+  useEffect(() => {
+    return () => {
+      verifyAbortRef.current?.abort();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-8 pb-12">
@@ -1266,7 +1319,7 @@ export function ScannerClient({
                         statusMeta.badgeClass,
                       )}
                     >
-                      <statusMeta.icon
+                      <StatusIcon
                         className={cn(
                           "h-3.5 w-3.5",
                           verificationStatus === "idle" ? "animate-spin" : "",
@@ -1344,6 +1397,33 @@ export function ScannerClient({
                       </>
                     ) : null}
                   </dl>
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase text-muted-foreground">
+                      Next actions
+                    </p>
+                    <div className="grid gap-2 text-xs sm:grid-cols-3">
+                      {actionSummaries.map((summary) => (
+                        <div
+                          key={summary.label}
+                          className={cn(
+                            "rounded border px-2 py-1",
+                            summary.ready
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-muted bg-muted/40 text-muted-foreground",
+                          )}
+                        >
+                          <div className="text-[11px] font-semibold uppercase tracking-wide">
+                            {summary.label}
+                          </div>
+                          <div className="text-[11px] leading-snug">
+                            {summary.ready
+                              ? "Ready"
+                              : summary.helper ?? "Unavailable"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   {verificationStatus === "unknown" ? (
                     <a
                       href="mailto:support@packtrace.app?subject=Unknown%20pack%20scan"
@@ -1403,6 +1483,12 @@ export function ScannerClient({
                             </div>
                           ))
                         )}
+                        {activeVerification.timelineNote &&
+                        !activeVerification.timelineError ? (
+                          <p className="text-xs text-muted-foreground">
+                            {activeVerification.timelineNote}
+                          </p>
+                        ) : null}
                         <div className="flex flex-wrap items-center gap-3 pt-2 text-[11px]">
                           {activeBatch ? (
                             <Link
@@ -1412,31 +1498,31 @@ export function ScannerClient({
                               View full timeline →
                             </Link>
                           ) : null}
-                          {activeVerification.topicId ? (
+                          {topicId ? (
                             <>
                               <a
                                 href={buildHashscanTopicUrl(
                                   CLIENT_NETWORK,
-                                  activeVerification.topicId,
+                                  topicId,
                                 )}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
                               >
-                                View on Hashscan
+                                View on HashScan
                                 <ExternalLink className="h-3 w-3" aria-hidden="true" />
                               </a>
                               <a
                                 href={buildMirrorTopicUrl(
                                   CLIENT_NETWORK,
-                                  activeVerification.topicId,
+                                  topicId,
                                   { order: "desc", limit: 50 },
                                 )}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
                               >
-                                Mirror Node JSON
+                                View raw Mirror Node JSON
                                 <ExternalLink className="h-3 w-3" aria-hidden="true" />
                               </a>
                             </>
@@ -1690,23 +1776,20 @@ export function ScannerClient({
                 ) : null}
                 {actionState.hederaDelivered &&
                 actionState.receipt.hcs_seq_no !== null &&
-                ((batchState.status === "loaded" && batchState.batch.topic_id) ||
-                  CLIENT_TOPIC_ID) ? (
+                topicId ? (
                   <div className="flex flex-wrap items-center gap-1 text-[11px]">
                     <span className="text-muted-foreground">Explorer</span>
                     <a
                       href={buildHashscanMessageUrl(
                         CLIENT_NETWORK,
-                        (batchState.status === "loaded" && batchState.batch.topic_id
-                          ? batchState.batch.topic_id
-                          : CLIENT_TOPIC_ID) ?? "",
+                        topicId,
                         actionState.receipt.hcs_seq_no,
                       )}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 text-emerald-700 underline-offset-4 hover:underline"
                     >
-                      View on Hashscan
+                      View on HashScan
                       <ExternalLink className="h-3 w-3" aria-hidden="true" />
                     </a>
                   </div>
