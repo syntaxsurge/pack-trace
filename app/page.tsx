@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { AuthButton } from "@/components/auth-button";
@@ -90,14 +89,7 @@ export default function Home() {
             className="flex items-center gap-2 text-base font-bold tracking-tight sm:text-lg"
             aria-label="pack-trace landing page"
           >
-            <Image
-              src="/images/pack-trace-logo.png"
-              alt="pack-trace logo"
-              width={36}
-              height={36}
-              className="h-9 w-9 rounded-md"
-              priority
-            />
+            <BrandLogo size={36} className="h-9 w-9" priority />
             <span className="hidden sm:inline">pack-trace</span>
           </Link>
           <nav className="hidden gap-8 text-sm font-medium text-muted-foreground md:flex">
@@ -362,17 +354,11 @@ export default function Home() {
       <footer className="border-t bg-gradient-to-br from-muted/30 to-muted/10">
         <div className="mx-auto w-full max-w-7xl px-6 py-12">
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Image
-                  src="/images/pack-trace-logo.png"
-                  alt="pack-trace logo"
-                  width={24}
-                  height={24}
-                  className="h-6 w-6 rounded-md"
-                />
-                <span className="text-lg font-bold">pack-trace</span>
-              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <BrandLogo size={24} className="h-6 w-6" />
+                  <span className="text-lg font-bold">pack-trace</span>
+                </div>
               <p className="text-sm text-muted-foreground">
                 Pack-level provenance for pharmaceuticals using Hedera blockchain
                 and GS1 standards.

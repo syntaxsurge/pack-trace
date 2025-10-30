@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { AuthButton } from "@/components/auth-button";
@@ -7,6 +6,7 @@ import type { NavLink } from "@/components/main-nav";
 import { MobileNav } from "@/components/mobile-nav";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Separator } from "@/components/ui/separator";
+import { BrandLogo } from "@/components/brand-logo";
 
 const primaryNav = [
   { href: "/dashboard", label: "Overview" },
@@ -38,14 +38,7 @@ export default function WorkspaceLayout({
               className="flex items-center gap-2 text-base font-bold tracking-tight sm:text-lg"
               aria-label="pack-trace dashboard home"
             >
-              <Image
-                src="/images/pack-trace-logo.png"
-                alt="pack-trace logo"
-                width={32}
-                height={32}
-                className="h-8 w-8 rounded-md"
-                priority
-              />
+              <BrandLogo size={32} className="h-8 w-8" priority />
               <span className="hidden sm:inline">pack-trace</span>
             </Link>
             <Separator orientation="vertical" className="hidden h-6 md:block" />
