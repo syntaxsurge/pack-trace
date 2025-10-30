@@ -10,13 +10,25 @@ import {
   QrCode,
   ReceiptText,
   ScanLine,
+  TrendingUp,
+  AlertCircle,
+  Package,
+  Activity,
+  Building2,
+  Calendar,
+  MapPin,
+  Hash,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { StatsCard } from "@/components/stats-card";
+import { EmptyState } from "@/components/empty-state";
 
 type Profile = {
   display_name: string | null;
@@ -288,24 +300,35 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
+      {/* Welcome Header */}
       <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Welcome back
-              {profile?.display_name ? `, ${profile.display_name}` : ""}.
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-gradient-to-br from-primary to-accent p-2">
+                <Building2 className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                  Welcome back
+                  {profile?.display_name ? `, ${profile.display_name}` : ""}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {facility?.name ?? "Your facility"}
+                </p>
+              </div>
+            </div>
+            <p className="text-base text-muted-foreground max-w-2xl">
               Track custody events, confirm GS1 identifiers, and audit every batch synced to Hedera.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="uppercase tracking-wide">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="default" className="h-8 px-3 text-sm font-semibold uppercase">
               {roleKey}
             </Badge>
             {facility?.type ? (
-              <Badge variant="secondary" className="uppercase tracking-wide">
+              <Badge variant="secondary" className="h-8 px-3 text-sm font-semibold uppercase">
                 {facility.type}
               </Badge>
             ) : null}
@@ -313,164 +336,260 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {quickActions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <Card key={action.key} className="shadow-sm transition hover:shadow-md">
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <CardTitle className="text-base font-semibold">
-                  {action.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm text-muted-foreground">
-                <p>{action.description}</p>
-                <Button asChild variant="outline" size="sm">
-                  <Link href={action.href}>
-                    Go
-                    <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Stats Cards */}
+      <section className="grid gap-6 sm:grid-cols-3">
+        <StatsCard
+          title="Batches Tracked"
+          value={batchesCountResponse.count ?? 0}
+          icon={Package}
+          description="Total batches in the system"
+        />
+        <StatsCard
+          title="Events Recorded"
+          value={eventsCountResponse.count ?? 0}
+          icon={Activity}
+          description="Custody events logged"
+        />
+        <StatsCard
+          title="Active Receipts"
+          value={activeReceiptCountResponse.count ?? 0}
+          icon={ReceiptText}
+          description="Dispensed with receipts"
+        />
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">{stat.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Quick Actions */}
+      <section>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Quick Actions</h2>
+            <p className="text-sm text-muted-foreground">Common tasks for your role</p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Card
+                key={action.key}
+                className="group relative overflow-hidden border-2 transition-all hover:-translate-y-1 hover:shadow-xl"
+              >
+                <Link href={action.href} className="block">
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+                    <div className="space-y-1 flex-1">
+                      <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors">
+                        {action.title}
+                      </CardTitle>
+                      <CardDescription className="text-sm leading-relaxed">
+                        {action.description}
+                      </CardDescription>
+                    </div>
+                    <div className="rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 p-2.5 group-hover:from-primary/20 group-hover:to-accent/20 transition-all">
+                      <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                      Get Started
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </CardContent>
+                </Link>
+              </Card>
+            );
+          })}
+        </div>
       </section>
 
+      {/* Facility Profile & Recent Batches */}
       <section className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="border-2">
           <CardHeader>
-            <CardTitle>Facility profile</CardTitle>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Building2 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Facility Profile</CardTitle>
+                <CardDescription>Your organization details</CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-start justify-between gap-6">
-              <span className="text-muted-foreground">Role</span>
-              <span className="font-medium uppercase tracking-wide">
-                {profile?.role ?? "STAFF"}
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-6">
-              <span className="text-muted-foreground">Facility</span>
-              <span className="font-medium">
-                {facility?.name ?? "Pending assignment"}
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-6">
-              <span className="text-muted-foreground">Type</span>
-              <span className="font-medium">
-                {facility?.type ?? "—"}
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-6">
-              <span className="text-muted-foreground">GS1 company prefix</span>
-              <span className="font-medium">
-                {facility?.gs1_company_prefix ?? "—"}
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-6">
-              <span className="text-muted-foreground">Country</span>
-              <span className="font-medium">
-                {facility?.country ?? "—"}
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-6">
-              <span className="text-muted-foreground">Onboarded</span>
-              <span className="font-medium">
-                {formatDate(facility?.created_at)}
-              </span>
+          <CardContent className="space-y-4">
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between py-2 border-b">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Badge variant="outline" className="h-6 w-6 p-0 justify-center">
+                    R
+                  </Badge>
+                  <span>Role</span>
+                </div>
+                <Badge variant="default" className="font-semibold uppercase">
+                  {profile?.role ?? "STAFF"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Building2 className="h-4 w-4" />
+                  <span>Facility</span>
+                </div>
+                <span className="font-semibold text-right max-w-[200px] truncate">
+                  {facility?.name ?? "Pending assignment"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Package className="h-4 w-4" />
+                  <span>Type</span>
+                </div>
+                <span className="font-semibold">
+                  {facility?.type ?? "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Hash className="h-4 w-4" />
+                  <span>GS1 Prefix</span>
+                </div>
+                <span className="font-mono font-semibold">
+                  {facility?.gs1_company_prefix ?? "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  <span>Country</span>
+                </div>
+                <span className="font-semibold">
+                  {facility?.country ?? "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Onboarded</span>
+                </div>
+                <span className="font-semibold">
+                  {formatDate(facility?.created_at)}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2">
           <CardHeader>
-            <CardTitle>Recent batches</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            {recentBatches.length === 0 ? (
-              <div className="space-y-2 text-muted-foreground">
-                <p>
-                  No batches found for your facility yet. Create one to generate
-                  GS1 DataMatrix labels and publish a manufacturing event.
-                </p>
-                <Link
-                  href="/batches/new"
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  Go to batch creation
-                </Link>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-accent/10 p-2">
+                  <Package className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <CardTitle>Recent Batches</CardTitle>
+                  <CardDescription>Latest registered batches</CardDescription>
+                </div>
               </div>
+              {recentBatches.length > 0 && (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/batches">View all</Link>
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentBatches.length === 0 ? (
+              <EmptyState
+                icon={Package}
+                title="No batches yet"
+                description="Create your first batch to generate GS1 DataMatrix labels and publish a manufacturing event."
+                action={{
+                  label: "Create Batch",
+                  onClick: () => {},
+                }}
+              />
             ) : (
               recentBatches.map((batch) => (
-                <div
+                <Card
                   key={batch.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+                  className="overflow-hidden border-l-4 border-l-primary"
                 >
-                  <div>
-                    <p className="font-medium">{batch.product_name ?? "Batch"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      GTIN {batch.gtin} · Lot {batch.lot}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Created {formatDate(batch.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end text-xs text-muted-foreground">
-                    <span>{batch.qty} units</span>
-                    <span>Expires {formatDate(batch.expiry)}</span>
-                    <Link
-                      href={{
-                        pathname: `/batches/${batch.id}`,
-                      }}
-                      prefetch={false}
-                      className="mt-2 text-primary hover:underline"
-                    >
-                      View timeline
-                    </Link>
-                  </div>
-                </div>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-base truncate">
+                          {batch.product_name ?? "Batch"}
+                        </p>
+                        <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="font-mono">
+                            GTIN {batch.gtin}
+                          </Badge>
+                          <Badge variant="outline" className="font-mono">
+                            Lot {batch.lot}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Package className="h-3 w-3" />
+                            {batch.qty} units
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Exp: {formatDate(batch.expiry)}
+                          </span>
+                        </div>
+                      </div>
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/batches/${batch.id}` as Route}>
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))
             )}
           </CardContent>
         </Card>
       </section>
 
+      {/* Latest Custody Events */}
       <section>
-        <Card>
+        <Card className="border-2">
           <CardHeader>
-            <CardTitle>Latest custody events</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-success/10 p-2">
+                  <Activity className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <CardTitle>Latest Custody Events</CardTitle>
+                  <CardDescription>Recent blockchain-backed transactions</CardDescription>
+                </div>
+              </div>
+              {recentEvents.length > 0 && (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/batches">View all</Link>
+                </Button>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <CardContent>
             {recentEvents.length === 0 ? (
-              <p className="text-muted-foreground">
-                Custody events will appear here after you scan or hand over a batch. Each record mirrors a Hedera consensus message.
-              </p>
+              <EmptyState
+                icon={Activity}
+                title="No events yet"
+                description="Custody events will appear here after you scan or hand over a batch. Each record mirrors a Hedera consensus message."
+              />
             ) : (
-              recentEvents.map((event) => (
-                <DashboardEventCard
-                  key={event.id}
-                  event={event}
-                  facilityId={profile?.facility_id ?? null}
-                />
-              ))
+              <div className="space-y-3">
+                {recentEvents.map((event) => (
+                  <DashboardEventCard
+                    key={event.id}
+                    event={event}
+                    facilityId={profile?.facility_id ?? null}
+                  />
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -494,46 +613,86 @@ function DashboardEventCard({ event, facilityId }: DashboardEventCardProps) {
 
   const statusLabel = (() => {
     if (isReceivable) {
-      return "Awaiting receipt";
+      return { text: "Awaiting receipt", variant: "warning" as const };
     }
     if (hasPendingReceipt) {
-      return "Pending confirmation";
+      return { text: "Pending confirmation", variant: "secondary" as const };
     }
     return null;
   })();
 
-  const containerClass = cn(
-    "flex flex-wrap items-center justify-between gap-3 rounded-md border p-3",
-    hasPendingReceipt ? "border-amber-300 bg-amber-50" : "",
-  );
+  const eventTypeColors: Record<string, string> = {
+    MANUFACTURED: "bg-success/10 text-success border-success/20",
+    HANDOVER: "bg-info/10 text-info border-info/20",
+    RECEIVED: "bg-primary/10 text-primary border-primary/20",
+    DISPENSED: "bg-accent/10 text-accent border-accent/20",
+  };
 
   return (
-    <div className={containerClass}>
-      <div className="space-y-1">
-        <p className="font-medium uppercase tracking-wide">{event.type}</p>
-        <p className="text-xs text-muted-foreground">
-          Batch {event.batch_id} · Seq #{event.hcs_seq_no ?? "pending"}
-        </p>
-        {statusLabel ? (
-          <Badge variant={isReceivable ? "secondary" : "outline"}>{statusLabel}</Badge>
-        ) : null}
-      </div>
-      <div className="flex flex-col items-end text-xs text-muted-foreground">
-        <span>{formatDate(event.created_at)}</span>
-        {canNavigate ? (
-          <Link
-            href={{ pathname: batchLink }}
-            prefetch={false}
-            className="mt-2 text-primary hover:underline"
-          >
-            Open batch
-          </Link>
-        ) : (
-          <span className="mt-2 text-amber-700">
-            Pending receipt at destination
-          </span>
-        )}
-      </div>
-    </div>
+    <Card
+      className={cn(
+        "border-l-4 transition-all hover:shadow-md",
+        hasPendingReceipt
+          ? "border-l-warning bg-warning/5"
+          : "border-l-success"
+      )}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "font-semibold uppercase",
+                  eventTypeColors[event.type] || "bg-muted/10"
+                )}
+              >
+                {event.type}
+              </Badge>
+              {statusLabel && (
+                <Badge variant={statusLabel.variant === "warning" ? "outline" : statusLabel.variant}>
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {statusLabel.text}
+                </Badge>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1">
+                  <Package className="h-3 w-3" />
+                  Batch {event.batch_id.substring(0, 8)}...
+                </span>
+                <span className="flex items-center gap-1">
+                  <Hash className="h-3 w-3" />
+                  Seq #{event.hcs_seq_no ?? "pending"}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {formatDate(event.created_at)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center">
+            {canNavigate ? (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={{ pathname: batchLink }} prefetch={false}>
+                  View
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            ) : (
+              <Alert className="p-2">
+                <AlertDescription className="text-xs">
+                  <AlertCircle className="h-3 w-3 inline mr-1" />
+                  Pending receipt
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
