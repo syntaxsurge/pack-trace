@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
 type Profile = {
@@ -41,6 +42,19 @@ type BatchSummary = {
   qty: number;
   created_at: string;
   current_owner_facility_id: string | null;
+};
+
+type EventSummary = {
+  id: string;
+  type: string;
+  created_at: string;
+  batch_id: string;
+  hcs_seq_no: number | null;
+  hcs_running_hash: string | null;
+  batches?: {
+    current_owner_facility_id: string | null;
+    pending_receipt_to_facility_id?: string | null;
+  } | null;
 };
 
 type QuickAction = {
@@ -211,7 +225,20 @@ export default async function DashboardPage() {
     supabase.from("events").select("id", { count: "exact", head: true }),
     supabase
       .from("events")
-      .select("id, type, created_at, batch_id, hcs_seq_no, hcs_running_hash")
+      .select(
+        `
+        id,
+        type,
+        created_at,
+        batch_id,
+        hcs_seq_no,
+        hcs_running_hash,
+        batches!events_batch_id_fkey (
+          current_owner_facility_id,
+          pending_receipt_to_facility_id
+        )
+      `,
+      )
       .order("created_at", { ascending: false })
       .limit(5),
     supabase
@@ -247,7 +274,7 @@ export default async function DashboardPage() {
 
   const recentBatches =
     (batchListResponse.data as BatchSummary[] | null) ?? [];
-  const recentEvents = eventListResponse.data ?? [];
+  const recentEvents = (eventListResponse.data as EventSummary[] | null) ?? [];
   const roleKey = normalizeRole(profile?.role);
   const quickActions = uniqueActions([
     ...(ROLE_ACTIONS[roleKey] ?? ROLE_ACTIONS.STAFF),
@@ -443,42 +470,79 @@ export default async function DashboardPage() {
           <CardContent className="space-y-3 text-sm">
             {recentEvents.length === 0 ? (
               <p className="text-muted-foreground">
-                Custody events will appear here after you scan or hand over a
-                batch. Each record mirrors a Hedera consensus message.
+                Custody events will appear here after you scan or hand over a batch. Each record mirrors a Hedera consensus message.
               </p>
             ) : (
               recentEvents.map((event) => (
-                <div
+                <DashboardEventCard
                   key={event.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
-                >
-                  <div>
-                    <p className="font-medium uppercase tracking-wide">
-                      {event.type}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Batch {event.batch_id} · Seq #
-                      {event.hcs_seq_no ?? "pending"}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end text-xs text-muted-foreground">
-                    <span>{formatDate(event.created_at)}</span>
-                    <Link
-                      href={{
-                        pathname: `/batches/${event.batch_id}`,
-                      }}
-                      prefetch={false}
-                      className="mt-2 text-primary hover:underline"
-                    >
-                      Open batch
-                    </Link>
-                  </div>
-                </div>
+                  event={event}
+                  facilityId={profile?.facility_id ?? null}
+                />
               ))
             )}
           </CardContent>
         </Card>
       </section>
+    </div>
+  );
+}
+
+interface DashboardEventCardProps {
+  event: EventSummary;
+  facilityId: string | null;
+}
+
+function DashboardEventCard({ event, facilityId }: DashboardEventCardProps) {
+  const batchLink = `/batches/${event.batch_id}` as Route;
+  const pendingFacilityId = event.batches?.pending_receipt_to_facility_id ?? null;
+  const hasPendingReceipt = Boolean(pendingFacilityId);
+  const recipientIsCurrentFacility = hasPendingReceipt && pendingFacilityId === facilityId;
+  const isReceivable = recipientIsCurrentFacility && event.type === "HANDOVER";
+  const canNavigate = !hasPendingReceipt;
+
+  const statusLabel = (() => {
+    if (isReceivable) {
+      return "Awaiting receipt";
+    }
+    if (hasPendingReceipt) {
+      return "Pending confirmation";
+    }
+    return null;
+  })();
+
+  const containerClass = cn(
+    "flex flex-wrap items-center justify-between gap-3 rounded-md border p-3",
+    hasPendingReceipt ? "border-amber-300 bg-amber-50" : "",
+  );
+
+  return (
+    <div className={containerClass}>
+      <div className="space-y-1">
+        <p className="font-medium uppercase tracking-wide">{event.type}</p>
+        <p className="text-xs text-muted-foreground">
+          Batch {event.batch_id} · Seq #{event.hcs_seq_no ?? "pending"}
+        </p>
+        {statusLabel ? (
+          <Badge variant={isReceivable ? "secondary" : "outline"}>{statusLabel}</Badge>
+        ) : null}
+      </div>
+      <div className="flex flex-col items-end text-xs text-muted-foreground">
+        <span>{formatDate(event.created_at)}</span>
+        {canNavigate ? (
+          <Link
+            href={{ pathname: batchLink }}
+            prefetch={false}
+            className="mt-2 text-primary hover:underline"
+          >
+            Open batch
+          </Link>
+        ) : (
+          <span className="mt-2 text-amber-700">
+            Pending receipt at destination
+          </span>
+        )}
+      </div>
     </div>
   );
 }
