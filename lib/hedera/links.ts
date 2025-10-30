@@ -76,3 +76,15 @@ export function buildHashscanMessageUrl(
   const base = getHashscanBase(network);
   return `${base}/topic/${topicId}/message/${sequenceNumber}`;
 }
+
+export function buildHashscanTransactionUrl(
+  network: string,
+  transactionId: string,
+): string {
+  const base = getHashscanBase(network);
+  const normalized =
+    transactionId.includes("@") && transactionId.split("@")[1]
+      ? transactionId.split("@")[1]!
+      : transactionId;
+  return `${base}/transaction/${normalized}`;
+}

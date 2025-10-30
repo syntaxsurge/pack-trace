@@ -33,6 +33,7 @@ import {
 import {
   buildHashscanMessageUrl,
   buildHashscanTopicUrl,
+  buildHashscanTransactionUrl,
   buildMirrorTopicUrl,
 } from "@/lib/hedera/links";
 import { formatConsensusTimestamp } from "@/lib/hedera/format";
@@ -1774,26 +1775,51 @@ export function ScannerClient({
                     </span>
                   </div>
                 ) : null}
-                {actionState.hederaDelivered &&
-                actionState.receipt.hcs_seq_no !== null &&
-                topicId ? (
-                  <div className="flex flex-wrap items-center gap-1 text-[11px]">
-                    <span className="text-muted-foreground">Explorer</span>
-                    <a
-                      href={buildHashscanMessageUrl(
-                        CLIENT_NETWORK,
-                        topicId,
-                        actionState.receipt.hcs_seq_no,
-                      )}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-emerald-700 underline-offset-4 hover:underline"
-                    >
-                      View on HashScan
-                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                    </a>
-                  </div>
-                ) : null}
+                {actionState.hederaDelivered
+                  ? (() => {
+                      const transactionUrl = actionState.receipt.hcs_tx_id
+                        ? buildHashscanTransactionUrl(
+                            CLIENT_NETWORK,
+                            actionState.receipt.hcs_tx_id,
+                          )
+                        : null;
+
+                      const messageUrl =
+                        topicId && actionState.receipt.hcs_seq_no !== null
+                          ? buildHashscanMessageUrl(
+                              CLIENT_NETWORK,
+                              topicId,
+                              actionState.receipt.hcs_seq_no,
+                            )
+                          : null;
+
+                      const explorerUrl = transactionUrl ?? messageUrl;
+                      const explorerLabel = transactionUrl
+                        ? "View transaction on HashScan"
+                        : messageUrl
+                          ? "View message on HashScan"
+                          : null;
+
+                      if (!explorerUrl || !explorerLabel) {
+                        return null;
+                      }
+
+                      return (
+                        <div className="flex flex-wrap items-center gap-1 text-[11px]">
+                          <span className="text-muted-foreground">Explorer</span>
+                          <a
+                            href={explorerUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-emerald-700 underline-offset-4 hover:underline"
+                          >
+                            {explorerLabel}
+                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                          </a>
+                        </div>
+                      );
+                    })()
+                  : null}
               </div>
               {!actionState.hederaDelivered ? (
                 <div className="flex items-start gap-2 text-amber-600">
