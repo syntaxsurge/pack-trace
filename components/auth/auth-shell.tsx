@@ -1,7 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
-import { Package } from "lucide-react";
 
 interface AuthShellProps extends React.ComponentPropsWithoutRef<"div"> {
   title: string;
@@ -32,9 +32,14 @@ export function AuthShell({
             href="/"
             className="inline-flex items-center justify-center gap-2 group"
           >
-            <div className="rounded-lg bg-gradient-to-br from-primary to-accent p-2 transition-transform group-hover:scale-110">
-              <Package className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <Image
+              src="/images/pack-trace-logo.png"
+              alt="pack-trace logo"
+              width={40}
+              height={40}
+              className="h-10 w-10 rounded-md transition-transform group-hover:scale-105"
+              priority
+            />
             <span className="text-xl font-bold tracking-tight">pack-trace</span>
           </Link>
           <div className="space-y-2">
@@ -49,4 +54,3 @@ export function AuthShell({
     </div>
   );
 }
-

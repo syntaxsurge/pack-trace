@@ -1,21 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { AuthButton } from "@/components/auth-button";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  ArrowRight,
-  FileText,
-  QrCode,
-  RadioTower,
-  ShieldCheck,
-  CheckCircle2,
-  Package,
-  Truck,
-  ShoppingBag,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, FileText, QrCode, RadioTower, ShieldCheck, CheckCircle2, Truck, ShoppingBag, Sparkles } from "lucide-react";
 
 const featureCards = [
   {
@@ -91,10 +81,15 @@ export default function Home() {
             className="flex items-center gap-2 text-base font-bold tracking-tight sm:text-lg"
             aria-label="pack-trace landing page"
           >
-            <div className="rounded-lg bg-gradient-to-br from-primary to-accent p-1.5">
-              <Package className="h-5 w-5 text-primary-foreground" />
-            </div>
-            pack-trace
+            <Image
+              src="/images/pack-trace-logo.png"
+              alt="pack-trace logo"
+              width={36}
+              height={36}
+              className="h-9 w-9 rounded-md"
+              priority
+            />
+            <span className="hidden sm:inline">pack-trace</span>
           </Link>
           <nav className="hidden gap-8 text-sm font-medium text-muted-foreground md:flex">
             <a className="transition-colors hover:text-primary" href="#features">
