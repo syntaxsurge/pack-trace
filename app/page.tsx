@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { AuthButton } from "@/components/auth-button";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,6 +70,14 @@ const flows = [
       "Pharmacies issue receipts, patients confirm authenticity via public verify pages, and auditors export Hedera-backed PDF reports.",
   },
 ];
+
+const flowIcons = [
+  ({ className }: { className?: string }) => (
+    <BrandLogo size={20} className={className} alt="" aria-hidden />
+  ),
+  Truck,
+  ShoppingBag,
+] as const;
 
 export default function Home() {
   return (
@@ -291,8 +300,7 @@ export default function Home() {
             </div>
             <div className="space-y-6">
               {flows.map((flow, index) => {
-                const icons = [Package, Truck, ShoppingBag]
-                const FlowIcon = icons[index]
+                const FlowIcon = flowIcons[index];
                 return (
                   <Card key={flow.title} className="border-l-4 border-l-primary">
                     <CardHeader className="flex flex-row items-start gap-4 space-y-0">
