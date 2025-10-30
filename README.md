@@ -282,6 +282,34 @@ Reverse Generation JSON samples
   - `pnpm sim:temp -- <batchId>`
 - If you imported the provided cold‑chain Event Flow, alerts will appear under `trace/alerts/coldchain` after a sustained breach.
 
+### Cold‑chain in production
+
+For the demo, `trace/sensors/tempC` and `trace/alerts/coldchain` are simulated so you can exercise the UI quickly. In production you don’t attach a sensor to every pack; you instrument the environment and logistics units, then map telemetry to batches.
+
+- Where to measure
+  - Room/vehicle ambient: fixed sensors in cold rooms, staging areas, and trucks.
+  - Shipper/carton/pallet level: one logger per insulated shipper or per pallet on critical lanes (sampling).
+  - Item level: only for high‑risk products or investigations.
+
+- Low‑cost hardware
+  - ESP32 + DS18B20 (Wi‑Fi MQTT, ~$10–$15), BLE tags with a BLE→MQTT gateway, or LoRaWAN/cellular loggers for long‑haul.
+
+- Publish pattern
+  - Devices publish raw readings, e.g. `devices/<deviceId>/tempC`:
+    ```json
+    { "v": 1, "value": 8.4, "ts": "2025-10-31T02:00:00Z", "deviceId": "dev-abc123" }
+    ```
+  - The app (or a small bridge) maintains an attach/detach mapping (deviceId ↔ batchId with start/end times).
+  - A bridge republishes to the canonical topic used by dashboards:
+    - Input: `devices/<deviceId>/tempC`
+    - Output: `trace/sensors/tempC` with batch metadata:
+      ```json
+      { "v": 1, "value": 8.4, "ts": "2025-10-31T02:00:00Z", "deviceId": "dev-abc123", "batchId": "88c551d1-f361-4c22-b293-bf6f7aa349ab" }
+      ```
+  - The cold‑chain Event Flow can then raise `trace/alerts/coldchain` entries (and call `/api/ai/summarize-coldchain`) without UI changes.
+
+Note: custody events on `trace/events` are live production writes; tempC and cold‑chain alerts are mocked only for the demo.
+
 ## Ports & URLs (defaults in this setup)
 
 - Pack‑Trace app: `http://localhost:3000`
