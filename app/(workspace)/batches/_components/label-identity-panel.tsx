@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -51,13 +51,6 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [origin, setOrigin] = useState<string>("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setOrigin(window.location.origin);
-    }
-  }, []);
 
   const getCanvasDataUrl = useCallback(() => {
     if (!canvasRef.current) return null;
@@ -129,20 +122,6 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
       .then(() => withFeedback("GS1 string copied"))
       .catch(() => setFeedback("Copy failed"));
   }, [labelText, withFeedback]);
-
-  const verifyUrl = useMemo(() => {
-    if (!labelText) return "";
-    const qs = new URLSearchParams({ code: labelText }).toString();
-    return origin ? `${origin}/verify?${qs}` : `/verify?${qs}`;
-  }, [labelText, origin]);
-
-  const handleCopyVerifyLink = useCallback(() => {
-    if (!verifyUrl) return;
-    void navigator.clipboard
-      .writeText(verifyUrl)
-      .then(() => withFeedback("Verify link copied"))
-      .catch(() => setFeedback("Copy failed"));
-  }, [verifyUrl, withFeedback]);
 
   const handleDownloadPng = useCallback(() => {
     const dataUrl = getCanvasDataUrl();
@@ -308,11 +287,6 @@ export function LabelIdentityPanel(props: LabelIdentityPanelProps) {
                 icon={<Copy size={ICON_SIZE} aria-hidden="true" />}
                 label="Copy GS1"
                 onClick={handleCopyGs1}
-              />
-              <IdentityActionButton
-                icon={<ExternalLink size={ICON_SIZE} aria-hidden="true" />}
-                label="Copy verify link"
-                onClick={handleCopyVerifyLink}
               />
             </div>
           </div>

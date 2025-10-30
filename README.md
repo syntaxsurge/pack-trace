@@ -20,7 +20,7 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 ### Backend
 - Route handlers under `app/api/*` apply Supabase service role keys when required, including custody event ingestion (`/api/events`) and facility directory queries (`/api/facilities`).
 - REST API surface delivers batch creation (`POST /api/batches`), batch snapshots (`GET /api/batches/:id`), DataMatrix label exports (`GET /api/batches/:id/label`), custody timelines (`GET /api/timeline`), verification (`GET /api/verify`), dispensing receipts (`POST /api/dispense`), and traceability reports (`GET /api/report`).
-- Supabase auth cookie middleware guards all private routes except `/`, `/login`, `/auth/*`, and `/verify`.
+- Supabase auth cookie middleware guards all private routes except `/`, `/login`, and `/auth/*`.
 - Hedera helpers in `lib/hedera` wrap the JavaScript SDK for client creation, topic management, message publishing, and Mirror Node reads.
 
 ### Distributed Ledger
@@ -120,7 +120,7 @@ timeline.entries.forEach((entry) => {
 4. **Verify (optional)**
    - Paste the topic ID into [HashScan](https://hashscan.io/testnet) to confirm it exists.
    - Run `pnpm tsx -r dotenv/config lib/hedera/examples/topic-submit.ts 0.0.987654 "hello world"` to publish a test message.
-5. **Restart the dev server** so `/scan`, batch timelines, and `/verify` can append and read Hedera messages.
+5. **Restart the dev server** so `/scan` and related custody timelines can append and read Hedera messages.
 
 3. **Apply database schema**
    - Run the SQL migrations under `supabase/migrations` (`000_init.sql`, `001_add_product_name_to_batches.sql`, etc.) against your Supabase project (`supabase db push` or Supabase Studio SQL editor).
@@ -141,7 +141,7 @@ timeline.entries.forEach((entry) => {
 
 - `/login` shares the Supabase password flow with `/auth/login` for compatibility with email links.
 - `/auth/*` still hosts Supabase confirm, reset, and update routes required for OTP/password flows.
-- Middleware redirects unauthenticated requests to `/login` while letting `/verify` remain public for patient lookups.
+- Middleware redirects unauthenticated requests to `/login` while keeping the marketing landing page and Supabase auth flows public.
 
 ## Dashboard Overview
 

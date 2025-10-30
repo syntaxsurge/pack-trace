@@ -41,11 +41,6 @@
       "name": "Reports",
       "url": "/reports",
       "description": "Jump to exports and auditor reports."
-    },
-    {
-      "name": "Verify Pack",
-      "url": "/verify",
-      "description": "Load the public verification page for patients."
     }
   ],
   "categories": ["business", "medical", "productivity"],

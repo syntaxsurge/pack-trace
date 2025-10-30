@@ -15,10 +15,7 @@ const primaryNav = [
   { href: "/reports", label: "Reports" },
 ] satisfies NavLink[];
 
-const secondaryNav = [
-  { href: "/verify", label: "Verify" },
-  { href: "/offline", label: "Offline guide" },
-] satisfies NavLink[];
+const secondaryNav = [{ href: "/offline", label: "Offline guide" }] satisfies NavLink[];
 
 export default function WorkspaceLayout({
   children,

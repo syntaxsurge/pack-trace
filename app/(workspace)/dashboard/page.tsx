@@ -10,7 +10,6 @@ import {
   QrCode,
   ReceiptText,
   ScanLine,
-  ShieldCheck,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -88,14 +87,6 @@ const BASE_ACTIONS: QuickAction[] = [
     description: "Export PDF or CSV custody evidence for auditors.",
     href: "/reports",
     icon: FileText,
-  },
-  {
-    key: "verify",
-    title: "Patient verify",
-    description:
-      "Share the public verify page so anyone can confirm authenticity.",
-    href: "/verify",
-    icon: ShieldCheck,
   },
 ];
 
