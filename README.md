@@ -388,6 +388,16 @@ Demo logins after seeding:
 
 Each account uses the shared demo password (or the override you provided) and can be rotated safely by re-running the script.
 
+Quick demo access (roles and credentials)
+
+```
+Demo access provisioned:
+  ADMIN    manufacturer@packtrace.app / TraceDemo!24
+  STAFF    distributor@packtrace.app  / TraceDemo!24
+  STAFF    pharmacy@packtrace.app     / TraceDemo!24
+  AUDITOR  auditor@packtrace.app      / TraceDemo!24
+```
+
 ## Demo Runbook
 
 Record the 10-minute walkthrough using the scripted checklist in `docs/demo-runbook.md`. It covers environment preparation, camera/printing tips, user profile sequencing, supOS cut-ins, and narration beats so the final edit captures every custody hop, Hedera proof, and cold-chain alert in a single take.
