@@ -1,8 +1,13 @@
 import mqtt, { type IClientOptions, type MqttClient } from "mqtt";
+import pino from "pino";
 
 import { suposConfig } from "./config";
 
 let cachedClient: MqttClient | null = null;
+const logger = pino(
+  { name: "supos-mqtt", level: process.env.LOG_LEVEL ?? "info" },
+  pino.destination({ sync: false }),
+);
 
 export function getMqttClient(): MqttClient {
   if (cachedClient) {
@@ -25,19 +30,19 @@ export function getMqttClient(): MqttClient {
   const client = mqtt.connect(suposConfig.mqttUrl, options);
 
   client.on("connect", () => {
-    console.info("[supos] mqtt connected", suposConfig.mqttUrl);
+    logger.info({ url: suposConfig.mqttUrl }, "SupOS MQTT connected");
   });
 
   client.on("reconnect", () => {
-    console.warn("[supos] mqtt reconnecting");
+    logger.warn("SupOS MQTT reconnecting…");
   });
 
   client.on("close", () => {
-    console.warn("[supos] mqtt connection closed");
+    logger.warn("SupOS MQTT connection closed");
   });
 
   client.on("error", (error) => {
-    console.error("[supos] mqtt error", error);
+    logger.error({ err: error }, "SupOS MQTT error");
   });
 
   cachedClient = client;
@@ -45,6 +50,9 @@ export function getMqttClient(): MqttClient {
 }
 
 export function resetMqttClient() {
-  cachedClient?.end(true);
+  if (cachedClient) {
+    logger.info("Resetting SupOS MQTT client");
+    cachedClient.end(true);
+  }
   cachedClient = null;
 }

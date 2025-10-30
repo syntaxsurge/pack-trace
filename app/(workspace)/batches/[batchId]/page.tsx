@@ -31,6 +31,8 @@ import {
   LabelIdentityPanel,
   LabelIdentityZoomTrigger,
 } from "@/app/(workspace)/batches/_components/label-identity-panel";
+import { suposConfig } from "@/lib/supos/config";
+import { SuposAlertBanner } from "./_components/supos-alert-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -320,6 +322,7 @@ export default async function BatchTimelinePage({
             Review on-ledger custody events for this batch, cross-referenced with database records.
           </p>
         </div>
+        <SuposAlertBanner batchId={batch.id} enabled={suposConfig.enabled} />
         {labelPayload ? (
           <div className="lg:sticky lg:top-24">
             <LabelIdentityPanel
