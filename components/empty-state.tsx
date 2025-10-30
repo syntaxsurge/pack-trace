@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { LucideIcon } from "lucide-react";
 
@@ -9,7 +10,7 @@ interface EmptyStateProps {
   description: string;
   action?: {
     label: string;
-    href: string;
+    href: Route;
   };
 }
 
