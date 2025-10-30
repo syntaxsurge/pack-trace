@@ -62,9 +62,12 @@ type EventSummary = {
   batch_id: string;
   hcs_seq_no: number | null;
   hcs_running_hash: string | null;
+  from_facility_id: string | null;
+  to_facility_id: string | null;
   batches?: {
     current_owner_facility_id: string | null;
     pending_receipt_to_facility_id?: string | null;
+    last_handover_event_id?: string | null;
   } | null;
 };
 
@@ -236,9 +239,12 @@ export default async function DashboardPage() {
         batch_id,
         hcs_seq_no,
         hcs_running_hash,
+        from_facility_id,
+        to_facility_id,
         batches!events_batch_id_fkey (
           current_owner_facility_id,
-          pending_receipt_to_facility_id
+          pending_receipt_to_facility_id,
+          last_handover_event_id
         )
       `,
       )
@@ -606,16 +612,19 @@ interface DashboardEventCardProps {
 function DashboardEventCard({ event, facilityId }: DashboardEventCardProps) {
   const batchLink = `/batches/${event.batch_id}` as Route;
   const pendingFacilityId = event.batches?.pending_receipt_to_facility_id ?? null;
-  const hasPendingReceipt = Boolean(pendingFacilityId);
-  const recipientIsCurrentFacility = hasPendingReceipt && pendingFacilityId === facilityId;
-  const isReceivable = recipientIsCurrentFacility && event.type === "HANDOVER";
-  const canNavigate = !hasPendingReceipt;
+  const lastHandoverEventId = event.batches?.last_handover_event_id ?? null;
+  const isPendingHandover =
+    Boolean(pendingFacilityId) &&
+    event.type === "HANDOVER" &&
+    lastHandoverEventId === event.id;
+  const recipientIsCurrentFacility =
+    isPendingHandover && pendingFacilityId === facilityId;
 
   const statusLabel = (() => {
-    if (isReceivable) {
+    if (recipientIsCurrentFacility) {
       return { text: "Awaiting receipt", variant: "warning" as const };
     }
-    if (hasPendingReceipt) {
+    if (isPendingHandover) {
       return { text: "Pending confirmation", variant: "secondary" as const };
     }
     return null;
@@ -632,7 +641,7 @@ function DashboardEventCard({ event, facilityId }: DashboardEventCardProps) {
     <Card
       className={cn(
         "border-l-4 transition-all hover:shadow-md",
-        hasPendingReceipt
+        isPendingHandover
           ? "border-l-warning bg-warning/5"
           : "border-l-success"
       )}
@@ -675,20 +684,20 @@ function DashboardEventCard({ event, facilityId }: DashboardEventCardProps) {
             </div>
           </div>
           <div className="flex items-center">
-            {canNavigate ? (
-              <Button asChild variant="ghost" size="sm">
-                <Link href={{ pathname: batchLink }} prefetch={false}>
-                  View
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            ) : (
+            {isPendingHandover ? (
               <Alert className="p-2">
                 <AlertDescription className="text-xs">
                   <AlertCircle className="h-3 w-3 inline mr-1" />
                   Pending receipt
                 </AlertDescription>
               </Alert>
+            ) : (
+              <Button asChild variant="ghost" size="sm">
+                <Link href={{ pathname: batchLink }} prefetch={false}>
+                  View
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
             )}
           </div>
         </div>
