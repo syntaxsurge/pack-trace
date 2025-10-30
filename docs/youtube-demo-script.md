@@ -67,6 +67,11 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - VO: “`trace/alerts/coldchain` summarizes sustained temperature breaches—also simulated here to demonstrate alerting and history.”
 - VO (production note): “In production you don’t put a sensor on every pack—you instrument the environment and logistics units (room, truck, shipper, pallet) and map that telemetry to the relevant batches.”
 
+### Production cold‑chain VO detail (insert here, ~20–30s)
+- VO: “In production we keep costs low by measuring at the lane, room, truck, or shipper/pallet level—not item level. A common setup is ESP32 with a DS18B20 probe publishing JSON to MQTT, or BLE tags with a small gateway.”
+- VO: “Sensors publish raw readings, for example `devices/<deviceId>/tempC` with `{ value, ts, deviceId }`. In the app we record an attach/detach mapping between `deviceId` and `batchId` when loading a shipper or pallet.”
+- VO: “A tiny bridge (Node‑RED or server route) looks up that mapping and republishes to our canonical `trace/sensors/tempC` with `{ value, ts, deviceId, batchId }`. The cold‑chain flow then emits `trace/alerts/coldchain` and calls the AI summariser—no UI changes required.”
+
 ## AI Summariser (cold‑chain) (6:00–6:50)
 - Shot: Event Flow (Node‑RED) → open the cold‑chain flow; highlight HTTP node to `/api/ai/summarize-coldchain`.
 - Lower‑third: “AI summariser via /api/ai/summarize-coldchain”
@@ -122,4 +127,3 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - “Operations and compliance are different problems: supOS is the real‑time bus and UI; Hedera is the public trust layer.”
 - “Custody events are real‑time; tempC and cold‑chain alerts are simulated here to illustrate the live operations view.”
 - “In production, use ESP32/BLE/LoRaWAN/cellular loggers at room/shipper/pallet level and map readings to batches.”
-
