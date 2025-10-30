@@ -157,16 +157,158 @@ timeline.entries.forEach((entry) => {
 6. **supOS configuration**
    1. Start supOS CE (Docker compose bundle) and sign in with an administrator account.
    2. Run `npm run worker:supos` to stream custody events into the supOS broker, and (optionally) feed temperature data using an MQTT simulator or hardware device.
-   3. In supOS:
-      - Navigate to **Namespace → Unmodeled Topics**, convert the following paths, and enable History for each:
-        - `trace/batches/{batchId}/events`
-        - `trace/batches/{batchId}/sensors/tempC`
-        - `trace/batches/{batchId}/alerts/coldchain`
-      - Open **Dashboards** and create the `Traceability Live` board with three widgets backed by the default Postgres source:
-        - Table: recent custody events (order by `payload->>'ts'` desc, filter by batch ID if desired).
-        - Line chart: temperature (`payload->>'value'`) over the last two hours.
-        - Table or stat: cold-chain alerts including the generated summary and breach window.
-      - Import or build the Node-RED Event Flow that monitors `sensors/tempC` for sustained readings above 8 C and publishes alert payloads (see `flows/supos-eventflow-coldchain.json`).
+   3. Follow the detailed supOS setup below.
+
+## supOS Setup (end‑to‑end)
+
+Use these steps to bring up supOS CE locally, free port 3000 for the app, model topics, and wire dashboards.
+
+### 1) Install and start supOS CE
+
+- Clone and configure:
+  - `cd .. && git clone https://github.com/FREEZONEX/supOS-CE`
+  - `cd supOS-CE && vi .env`
+    - Set `VOLUMES_PATH` to a writable directory (e.g. `<repo>/supOS-CE/runtime`).
+    - Set `ENTRANCE_DOMAIN` to your host IP (e.g. `192.168.1.4`).
+    - Leave defaults for other values unless you know you need changes.
+- Start supOS CE:
+  - `bash bin/install.sh`
+  - When prompted for IP selection, keep your chosen `ENTRANCE_DOMAIN`.
+  - Wait for the success banner with the login URL (default admin: `supos/supos`).
+
+### 2) Remap Grafana to free port 3000 for the app
+
+- Edit `docker-compose-4c8g.yml` under the `grafana` service:
+  - Change `ports: ["3000:3000"]` to `ports: ["3300:3000"]`.
+- Recreate Grafana:
+  - `docker compose -p supos -f docker-compose-4c8g.yml up -d grafana`
+- URLs:
+  - supOS gateway: `http://192.168.1.4:8088/home`
+  - Grafana: `http://192.168.1.4:3300`
+
+### 3) Run the Pack‑Trace bridge and app
+
+- From the Pack‑Trace repo:
+  - Apply DB migrations (includes dual‑topic outbox): `pnpm db:push`
+  - Start the supOS outbox worker: `pnpm worker:supos`
+  - Start the app on port 3000: `pnpm dev`
+
+### 4) Model topics in supOS Namespace (History ON)
+
+Pack‑Trace publishes custody to two MQTT topics automatically (no Node‑RED aggregation required):
+- Per‑batch: `trace/batches/<batchId>/events`
+- Aggregate: `trace/events` (use this one for dashboards)
+
+Optional operations topics (helpful for demo UI):
+- `trace/sensors/tempC` (simulated temperature telemetry)
+- `trace/alerts/coldchain` (AI‑summarised alert entries)
+
+Model the aggregate and (optionally) the ops topics via Reverse Generation.
+
+- Go to Namespace:
+  - `http://192.168.1.4:8088/uns` (or via Home → UNS).
+- Create the modeled topic for custody events:
+  - Click “+ New Topic”, Path: `trace/events`, Data Type: Time Series.
+  - Choose “Reverse Generation” and paste the sample JSON below (or select a live unmodeled `trace/events` payload).
+  - Ensure “Enable History” is ON. Save.
+- Create optional topics for sensors/alerts the same way.
+
+Reverse Generation JSON samples
+
+- `trace/events`
+  ```json
+  {
+    "v": 1,
+    "type": "HANDOVER",
+    "batch": {
+      "id": "88c551d1-f361-4c22-b293-bf6f7aa349ab",
+      "gtin": "09506000134352",
+      "lot": "AMX-54E",
+      "exp": "2025-11-19"
+    },
+    "actor": { "facilityId": "3684d565-ec60-49e0-a0d8-011f742fb5cb", "role": "STAFF" },
+    "to": { "facilityId": "634fbdf2-69e0-40ee-b3a3-d52f775d71ec" },
+    "ts": "2025-10-30T15:34:29.950Z",
+    "prev": "sha256:4d7bc3e8be8779af50799141f14af7c291f9ec6822df749f052dc302eb02ebdc",
+    "meta": {
+      "scannerSource": "manual entry",
+      "inputMode": "manual",
+      "scannedAt": "2025-10-30T15:34:27.401Z",
+      "handoverEventId": "1a9bdfe4-f074-4bdf-90c0-4e8e312a7398"
+    },
+    "event": {
+      "id": "829a8610-c1d9-4e06-903f-88a257842bdc",
+      "hederaDelivered": true,
+      "hcsTxId": "0.0.7154879@1761838644.087622792",
+      "hcsSeqNo": 19,
+      "hcsRunningHash": "clPbFD0TsvBP+fV5beElPbycwOs40UZ6LbqtsY76NYGXdfcF0CJWq2XRMMMNu/kG",
+      "payloadHash": "f3a896d2e4fcc54b4bca54c81014eba8615a6a43c0c92cd181e23d4a68b28fcb"
+    }
+  }
+  ```
+
+- `trace/sensors/tempC`
+  ```json
+  { "v": 1, "value": 8.6, "ts": "2025-10-30T15:36:05.120Z" }
+  ```
+
+- `trace/alerts/coldchain`
+  ```json
+  {
+    "v": 1,
+    "kind": "COLDCHAIN_EXCURSION",
+    "summary": "Temperature exceeded 8.0°C for ~10 minutes; likely door left open.",
+    "windowMinutes": 10,
+    "maxTemp": 8.0,
+    "samples": [
+      { "ts": "2025-10-30T15:20:05.000Z", "value": 8.2 },
+      { "ts": "2025-10-30T15:25:05.000Z", "value": 8.7 },
+      { "ts": "2025-10-30T15:30:05.000Z", "value": 8.4 }
+    ],
+    "ts": "2025-10-30T15:31:00.000Z"
+  }
+  ```
+
+### 5) Configure Data Connection (Source Flow) for the topic
+
+- After creating a modeled topic, open it in Namespace and scroll to “Topology Map”.
+- Click the “Data Connection” card. If prompted, select the **node‑red** template and save/deploy.
+- This binds the topic to the internal pipeline so History persists and dashboards can query it.
+
+### 6) Build a dashboard
+
+- supOS gateway → Dashboards → “+ New Dashboard”.
+- Add a Table bound to `trace/events`; order by `ts` (descending). Save.
+
+### 7) Optional: simulate temperature
+
+- Run the simulator from this repo to populate `trace/sensors/tempC`:
+  - `pnpm sim:temp -- <batchId>`
+- If you imported the provided cold‑chain Event Flow, alerts will appear under `trace/alerts/coldchain` after a sustained breach.
+
+## Ports & URLs (defaults in this setup)
+
+- Pack‑Trace app: `http://localhost:3000`
+- supOS gateway: `http://192.168.1.4:8088/home` (adjust to your LAN IP)
+- supOS Namespace shortcut: `http://192.168.1.4:8088/uns`
+- supOS MQTT broker (internal): `mqtt://192.168.1.4:1883`
+- Grafana: `http://192.168.1.4:3300` (remapped from 3000)
+- Node‑RED (eventflow): `http://192.168.1.4:1889`
+
+## Command Reference (as used in this setup)
+
+- Clone supOS CE: `git clone https://github.com/FREEZONEX/supOS-CE`
+- Start supOS CE: `bash bin/install.sh`
+- Remap Grafana port and restart: `docker compose -p supos -f docker-compose-4c8g.yml up -d grafana`
+- Apply Pack‑Trace migrations: `pnpm db:push`
+- Run the worker: `pnpm worker:supos`
+- Start the app: `pnpm dev`
+- Simulate temperature: `pnpm sim:temp -- <batchId>`
+
+## Notes
+
+- The app publishes custody events to both `trace/batches/<batchId>/events` and `trace/events`. Use `trace/events` for dashboards to avoid per‑batch modeling.
+- For cold‑chain demo UI, sensors and alerts are simulated; custody events are live.
 
 ## Auth & Routing
 
