@@ -82,9 +82,25 @@ export function buildHashscanTransactionUrl(
   transactionId: string,
 ): string {
   const base = getHashscanBase(network);
-  const normalized =
-    transactionId.includes("@") && transactionId.split("@")[1]
-      ? transactionId.split("@")[1]!
-      : transactionId;
+  const normalized = normalizeTransactionIdForHashscan(transactionId);
   return `${base}/transaction/${normalized}`;
+}
+
+function normalizeTransactionIdForHashscan(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed.includes("@")) {
+    return trimmed;
+  }
+
+  const [accountId, timestamp] = trimmed.split("@");
+
+  if (!accountId || !timestamp) {
+    return trimmed;
+  }
+
+  const [seconds, nanosRaw] = timestamp.split(".");
+  const nanos = (nanosRaw ?? "0").padEnd(9, "0").slice(0, 9);
+
+  return `${accountId}-${seconds}-${nanos}`;
 }
