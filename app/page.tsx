@@ -356,9 +356,13 @@ export default function Home() {
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <div className="rounded-lg bg-gradient-to-br from-primary to-accent p-1.5">
-                  <Package className="h-5 w-5 text-primary-foreground" />
-                </div>
+                <Image
+                  src="/images/pack-trace-logo.png"
+                  alt="pack-trace logo"
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 rounded-md"
+                />
                 <span className="text-lg font-bold">pack-trace</span>
               </div>
               <p className="text-sm text-muted-foreground">
