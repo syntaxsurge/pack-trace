@@ -34,10 +34,7 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 ### Operations Bus
 - `lib/supos/*` establishes an MQTT publisher that mirrors custody events into the supOS CE broker (default `mqtt://localhost:1883`) with QoS 1 delivery semantics.
 - The Supabase trigger `enqueue_supos_outbox` persists every custody event into `supos_outbox`, allowing `npm run worker:supos` to replay messages until the broker acknowledges publication.
-- Topics follow a Unified Namespace shape under `trace/batches/{batchId}/...`:
-  - `events` – custody state transitions (`MANUFACTURED`, `HANDOVER`, `RECEIVED`, `DISPENSED`, `RECALLED`) enriched with Hedera hashes.
-  - `sensors/tempC` – live temperature telemetry streamed by shop-floor devices or the provided simulator.
-  - `alerts/coldchain` – Node-RED Event Flow emits cold-chain excursions enriched with AI-generated summaries.
+- Topics follow a Unified Namespace shape: `trace/events` carries custody transitions, while `trace/sensors/tempC` and `trace/alerts/coldchain` provide optional cold-chain telemetry and summaries for dashboards.
 - supOS converts these topics into modeled entities with History enabled so Dashboards can read from the internal TimescaleDB/Postgres store without additional ETL, while `/api/stream/supos` provides live SSE updates for the workspace UI.
 
 ### Distributed Ledger
@@ -189,15 +186,14 @@ Use these steps to bring up supOS CE locally, free port 3000 for the app, model 
 ### 3) Run the Pack‑Trace bridge and app
 
 - From the Pack‑Trace repo:
-  - Apply DB migrations (includes dual‑topic outbox): `pnpm db:push`
+  - Apply DB migrations (latest supOS outbox trigger): `pnpm db:push`
   - Start the supOS outbox worker: `pnpm worker:supos`
   - Start the app on port 3000: `pnpm dev`
 
 ### 4) Model topics in supOS Namespace (History ON)
 
-Pack‑Trace publishes custody to two MQTT topics automatically (no Node‑RED aggregation required):
-- Per‑batch: `trace/batches/<batchId>/events`
-- Aggregate: `trace/events` (use this one for dashboards)
+Pack‑Trace publishes custody to a single aggregate topic (no Node‑RED aggregation required):
+- `trace/events` (use this for dashboards)
 
 Optional operations topics (helpful for demo UI):
 - `trace/sensors/tempC` (simulated temperature telemetry)
@@ -307,7 +303,6 @@ Reverse Generation JSON samples
 
 ## Notes
 
-- The app publishes custody events to both `trace/batches/<batchId>/events` and `trace/events`. Use `trace/events` for dashboards to avoid per‑batch modeling.
 - For cold‑chain demo UI, sensors and alerts are simulated; custody events are live.
 
 ## Auth & Routing
@@ -344,7 +339,7 @@ Reverse Generation JSON samples
 - `npm run typecheck` – TypeScript without emit (required before merging).
 - `npm run seed:demo` – provision demo facilities, accounts, batches, events, and receipts in Supabase (requires service role key).
 - `npm run worker:supos` – drain the Supabase `supos_outbox` table and publish each record to the supOS MQTT broker with QoS 1 retries.
-- `npm run sim:temp -- <batchId>` – stream synthetic temperature telemetry to `trace/batches/{batchId}/sensors/tempC` for dashboards and alert testing.
+- `npm run sim:temp -- <batchId>` – stream synthetic temperature telemetry to `trace/sensors/tempC` for dashboards and alert testing (batch ID is only used for logging).
 
 ## Demo data & credentials
 

@@ -67,11 +67,14 @@ function main() {
   const options = parseArgs();
   const mqttUrl = suposConfig.mqttUrl;
 
+  const aggregateTopic = "trace/sensors/tempC";
+
   logger.info(
     {
       mqttUrl,
-      topic: `trace/batches/${options.batchId}/sensors/tempC`,
+      topic: aggregateTopic,
       intervalMs: options.intervalMs,
+      batchId: options.batchId,
     },
     "starting SupOS temperature simulator",
   );
@@ -94,20 +97,20 @@ function main() {
         v: 1,
         value,
         ts: new Date(now).toISOString(),
+        batchId: options.batchId,
       };
-      const topic = `trace/batches/${options.batchId}/sensors/tempC`;
 
       client.publish(
-        topic,
+        aggregateTopic,
         JSON.stringify(payload),
         { qos: 1 },
         (error?: Error) => {
           if (error) {
-            logger.error({ error, topic }, "failed to publish temperature reading");
+            logger.error({ error, topic: aggregateTopic }, "failed to publish temperature reading");
             return;
           }
 
-          logger.debug({ topic, value }, "published temperature reading");
+          logger.debug({ topic: aggregateTopic, value }, "published temperature reading");
         },
       );
     }, options.intervalMs);

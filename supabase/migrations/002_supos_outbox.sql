@@ -19,7 +19,6 @@ create index if not exists supos_outbox_status_next_retry_idx on public.supos_ou
 
 create or replace function public.enqueue_supos_outbox() returns trigger as $$
 declare
-  v_topic text;
   v_payload jsonb;
   v_batch record;
   v_actor_role text;
@@ -43,7 +42,6 @@ begin
    order by e.created_at desc
    limit 1;
 
-  v_topic := format('trace/batches/%s/events', NEW.batch_id);
   v_payload := jsonb_build_object(
     'v', 1,
     'type', NEW.type,
@@ -81,9 +79,6 @@ begin
       )
     )
   );
-
-  insert into public.supos_outbox(event_id, batch_id, topic, payload)
-  values (NEW.id, NEW.batch_id, v_topic, v_payload);
 
   insert into public.supos_outbox(event_id, batch_id, topic, payload)
   values (NEW.id, NEW.batch_id, 'trace/events', v_payload);
