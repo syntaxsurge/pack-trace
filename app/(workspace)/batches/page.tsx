@@ -140,7 +140,7 @@ export default async function BatchesPage() {
         topic_id,
         current_owner_facility_id,
         facilities:facilities!batches_current_owner_facility_id_fkey ( name, type ),
-        events(type, created_at, hcs_seq_no)
+        events:events!events_batch_id_fkey(type, created_at, hcs_seq_no)
       `,
     )
     .order("created_at", { ascending: false })
