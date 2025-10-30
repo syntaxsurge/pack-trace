@@ -81,18 +81,7 @@ export async function verifyCode(
       .from("batches")
       .select(
         `
-        id,
-        product_name,
-        gtin,
-        lot,
-        expiry,
-        qty,
-        label_text,
-        topic_id,
-        current_owner_facility_id,
-        pending_receipt_to_facility_id,
-        last_handover_event_id,
-        created_at,
+        *,
         current_owner_facility:facilities!batches_current_owner_facility_id_fkey(
           id,
           name,
