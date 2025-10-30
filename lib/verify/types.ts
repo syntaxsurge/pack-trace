@@ -1,5 +1,6 @@
-import type { ParsedGs1Datamatrix } from "@/lib/labels/gs1";
+import type { CustodyEventType } from "@/lib/hedera/types";
 import type { CustodyTimelineEntry } from "@/lib/hedera/timeline";
+import type { ParsedGs1Datamatrix } from "@/lib/labels/gs1";
 
 export type VerifyStatus =
   | "idle"
@@ -44,4 +45,5 @@ export interface VerifyState {
   nextCursor: string | null;
   topicId: string | null;
   facilities: Record<string, VerifyFacility>;
+  latestEventType: CustodyEventType | null;
 }

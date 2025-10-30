@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { serverEnv } from "@/lib/env/server";
+import { loadBatchTimeline } from "@/lib/hedera/timeline-service";
+import type { CustodyEventType } from "@/lib/hedera/types";
 import { parseGs1Datamatrix } from "@/lib/labels/gs1";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { loadBatchTimeline } from "@/lib/hedera/timeline-service";
-import { serverEnv } from "@/lib/env/server";
 import type {
   VerifyBatch,
   VerifyFacility,
@@ -75,6 +76,7 @@ export async function verifyCode(
   }
 
   let batch: VerifyBatch | null = null;
+  let latestEventType: CustodyEventType | null = null;
 
   if (parsed) {
     const batchResponse = await admin
@@ -161,6 +163,36 @@ export async function verifyCode(
     message = buildStatusMessage(status);
   }
 
+  if (batch) {
+    const latestEventResponse = await admin
+      .from("events")
+      .select("type")
+      .eq("batch_id", batch.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (
+      latestEventResponse.error &&
+      latestEventResponse.error.code !== "PGRST116"
+    ) {
+      throw new Error(latestEventResponse.error.message);
+    }
+
+    const rawType =
+      (latestEventResponse.data?.type as string | null | undefined) ?? null;
+
+    if (
+      rawType === "MANUFACTURED" ||
+      rawType === "RECEIVED" ||
+      rawType === "HANDOVER" ||
+      rawType === "DISPENSED" ||
+      rawType === "RECALLED"
+    ) {
+      latestEventType = rawType;
+    }
+  }
+
   const topicId = resolveTopicId(batch);
 
   let timelineEntries: VerifyState["timelineEntries"] = [];
@@ -220,7 +252,9 @@ export async function verifyCode(
     message = buildStatusMessage(status);
   }
 
-  const hasRecall = timelineEntries.some((entry) => entry.type === "RECALLED");
+  const hasRecall =
+    latestEventType === "RECALLED" ||
+    timelineEntries.some((entry) => entry.type === "RECALLED");
 
   if (hasRecall && status !== "error" && status !== "idle") {
     status = "recalled";
@@ -285,5 +319,6 @@ export async function verifyCode(
     nextCursor,
     topicId,
     facilities,
+    latestEventType,
   };
 }

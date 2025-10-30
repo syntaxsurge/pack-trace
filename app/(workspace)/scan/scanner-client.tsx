@@ -53,7 +53,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
-type CustodyEventType = "RECEIVED" | "HANDOVER" | "DISPENSED";
+type CustodyActionType = "RECEIVED" | "HANDOVER" | "DISPENSED";
 
 interface FacilitySummary {
   id: string;
@@ -91,10 +91,10 @@ interface VerifyCacheEntry {
 
 type ActionStatus =
   | { state: "idle" }
-  | { state: "submitting"; action: CustodyEventType }
+  | { state: "submitting"; action: CustodyActionType }
   | {
       state: "success";
-      action: CustodyEventType;
+      action: CustodyActionType;
       receipt: {
         id: string;
         hcs_tx_id: string;
@@ -105,7 +105,7 @@ type ActionStatus =
       hederaDelivered: boolean;
       warning?: string | null;
     }
-  | { state: "error"; action: CustodyEventType; message: string };
+  | { state: "error"; action: CustodyActionType; message: string };
 
 type ScanMode = "camera" | "upload" | "paste" | "manual";
 
@@ -258,6 +258,11 @@ export function ScannerClient({
   const activeBatch = activeVerification?.batch ?? null;
   const verificationStatus = activeVerification?.status ?? "idle";
   const miniTimelineEntries = activeVerification?.timelineEntries ?? [];
+  const latestEventType = activeVerification?.latestEventType ?? null;
+  const effectiveLatestEventType =
+    actionState.state === "success" && actionState.action === "DISPENSED"
+      ? "DISPENSED"
+      : latestEventType;
   const facilityMap = activeVerification?.facilities ?? {};
   const parsed = activeVerification?.parsed ?? scanPayload;
   const statusMeta = getStatusMeta(verificationStatus as VerifyStatus);
@@ -296,6 +301,28 @@ export function ScannerClient({
 
     if (!activeBatch) {
       return defaults;
+    }
+
+    if (effectiveLatestEventType === "DISPENSED") {
+      return {
+        canReceive: false,
+        receiveReason: "This pack was already dispensed.",
+        canHandover: false,
+        handoverReason: "This pack was already dispensed.",
+        canDispense: false,
+        dispenseReason: "This pack was already dispensed.",
+      };
+    }
+
+    if (effectiveLatestEventType === "RECALLED") {
+      return {
+        canReceive: false,
+        receiveReason: "This pack has been recalled.",
+        canHandover: false,
+        handoverReason: "This pack has been recalled.",
+        canDispense: false,
+        dispenseReason: "Recalled packs cannot be dispensed.",
+      };
     }
 
     const currentOwnerId = activeBatch.current_owner_facility_id;
@@ -361,7 +388,13 @@ export function ScannerClient({
       canDispense,
       dispenseReason,
     };
-  }, [activeBatch, facility?.id, facility?.type, userRole]);
+  }, [
+    activeBatch,
+    facility?.id,
+    facility?.type,
+    effectiveLatestEventType,
+    userRole,
+  ]);
 
   const loadVerification = useCallback(
     async (rawCode: string, lookupKey: string, options?: { force?: boolean }) => {
@@ -716,7 +749,7 @@ export function ScannerClient({
   }, [facility?.id, directoryRefreshToken, normalizedFacilitySearch]);
 
   const handleAction = useCallback(
-    async (actionType: CustodyEventType) => {
+    async (actionType: CustodyActionType) => {
       if (!scanPayload) {
         return;
       }
@@ -1854,11 +1887,11 @@ export function ScannerClient({
 interface ActionTileProps {
   title: string;
   description: string;
-  action: CustodyEventType;
+  action: CustodyActionType;
   disabled?: boolean;
   loading?: boolean;
   helperText?: string | null;
-  onClick: (action: CustodyEventType) => void;
+  onClick: (action: CustodyActionType) => void;
 }
 
 function ActionTile({

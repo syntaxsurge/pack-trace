@@ -356,10 +356,14 @@ export async function POST(request: Request) {
   }
 
   if (terminalEventResponse.data?.type) {
+    const terminalType = terminalEventResponse.data.type;
     await cleanupIdempotencyKey();
     return NextResponse.json(
       {
-        error: `Batch events are locked after ${terminalEventResponse.data.type.toLowerCase()}.`,
+        error:
+          terminalType === "DISPENSED"
+            ? "This pack was already dispensed."
+            : `Batch events are locked after ${terminalType.toLowerCase()}.`,
       },
       { status: 409 },
     );
@@ -531,6 +535,8 @@ export async function POST(request: Request) {
 
     fromFacilityId = actorFacilityId ?? batch.current_owner_facility_id;
     toFacilityId = null;
+    nextOwnerFacilityId = null;
+    nextPendingReceiptFacilityId = null;
   } else if (eventType === "RECALLED") {
     if (!isAuditor) {
       await cleanupIdempotencyKey();
@@ -688,6 +694,20 @@ export async function POST(request: Request) {
       .from("batches")
       .update({
         current_owner_facility_id: nextOwnerFacilityId,
+        pending_receipt_to_facility_id: null,
+        last_handover_event_id: null,
+      })
+      .eq("id", batch.id);
+
+    if (updateError) {
+      await cleanupIdempotencyKey();
+      return NextResponse.json({ error: updateError.message }, { status: 400 });
+    }
+  } else if (eventType === "DISPENSED") {
+    const { error: updateError } = await admin
+      .from("batches")
+      .update({
+        current_owner_facility_id: null,
         pending_receipt_to_facility_id: null,
         last_handover_event_id: null,
       })
