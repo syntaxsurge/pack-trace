@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { User2 } from "lucide-react";
+import { User2, LayoutDashboard, ScanLine, FileText, LogOut } from "lucide-react";
 
 import { LogoutButton } from "@/components/logout-button";
 import { Button } from "@/components/ui/button";
@@ -43,21 +43,33 @@ export function UserMenu({ email }: UserMenuProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/scan">Scan workspace</Link>
+          <Link href="/scan" className="flex items-center gap-2">
+            <ScanLine className="h-4 w-4" />
+            Scan workspace
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/reports">Reports</Link>
+          <Link href="/reports" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Reports
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <LogoutButton
             variant="ghost"
             size="sm"
-            className="w-full justify-start px-0 font-medium"
-          />
+            className="w-full justify-start px-0 font-medium flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </LogoutButton>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

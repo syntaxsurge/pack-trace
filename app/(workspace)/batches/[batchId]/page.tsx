@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   buildGs1DatamatrixPayload,
   type Gs1DatamatrixPayload,
@@ -14,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { serverEnv } from "@/lib/env/server";
 import {
   buildHashscanMessageUrl,
@@ -26,6 +28,20 @@ import { type CustodyTimelineEntry } from "@/lib/hedera/timeline";
 import { decodeCursorParam, encodeCursorParam } from "@/lib/utils/cursor";
 import { formatConsensusTimestamp } from "@/lib/hedera/format";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import {
+  Package,
+  Calendar,
+  Hash,
+  Building2,
+  Activity,
+  Database,
+  AlertCircle,
+  Info,
+  ExternalLink,
+  ChevronRight,
+} from "lucide-react";
 import TopicLinksPanel from "./topic-links";
 import {
   LabelIdentityPanel,
@@ -314,15 +330,16 @@ export default async function BatchTimelinePage({
     events.some((event) => event.hcs_seq_no !== null);
 
   return (
-    <div className="space-y-10">
-      <section className="space-y-4">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Batch timeline</h1>
-          <p className="text-sm text-muted-foreground">
-            Review on-ledger custody events for this batch, cross-referenced with database records.
-          </p>
-        </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="Batch Timeline"
+        description="Review on-ledger custody events for this batch, cross-referenced with database records."
+        icon={Activity}
+      />
+
+      <section className="space-y-6">
         <SuposAlertBanner batchId={batch.id} enabled={suposConfig.enabled} />
+
         {labelPayload ? (
           <div className="lg:sticky lg:top-24">
             <LabelIdentityPanel
@@ -340,38 +357,110 @@ export default async function BatchTimelinePage({
             />
           </div>
         ) : batch.label_text ? (
-          <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Stored label data is invalid. Update the batch details to regenerate the GS1 label.
-          </div>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Stored label data is invalid. Update the batch details to regenerate the GS1 label.
+            </AlertDescription>
+          </Alert>
         ) : (
-          <div className="rounded border border-dashed border-muted-foreground/40 p-4 text-sm text-muted-foreground">
-            No GS1 label is associated with this batch.
-          </div>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              No GS1 label is associated with this batch.
+            </AlertDescription>
+          </Alert>
         )}
-        <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Product</span>
-            <span className="font-medium">{batch.product_name ?? "—"}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Created</span>
-            <span className="font-medium">{formatDate(batch.created_at)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Current owner</span>
-            <span className="font-medium">{formatFacilityId(batch.current_owner_facility_id)}</span>
-          </div>
-        </div>
+
+        <Card className="border-2">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Package className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Batch Information</CardTitle>
+                <CardDescription>
+                  Key identifiers and metadata for this batch
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Package className="h-4 w-4" />
+                  <span>Product</span>
+                </div>
+                <p className="font-medium">{batch.product_name ?? "—"}</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Hash className="h-4 w-4" />
+                  <span>GTIN</span>
+                </div>
+                <Badge variant="outline" className="font-mono text-xs">
+                  {batch.gtin}
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Hash className="h-4 w-4" />
+                  <span>Lot</span>
+                </div>
+                <Badge variant="secondary" className="font-mono">
+                  {batch.lot}
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Expiry</span>
+                </div>
+                <p className="font-medium">{formatDate(batch.expiry)}</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Hash className="h-4 w-4" />
+                  <span>Quantity</span>
+                </div>
+                <p className="font-medium">{formatQuantity(batch.qty)}</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Created</span>
+                </div>
+                <p className="font-medium">{formatDate(batch.created_at)}</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Building2 className="h-4 w-4" />
+                  <span>Current Owner</span>
+                </div>
+                <p className="font-medium">{formatFacilityId(batch.current_owner_facility_id)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Card>
+        <Card className="border-2">
           <CardHeader>
-            <CardTitle>Hedera custody timeline</CardTitle>
-            <CardDescription>
-              Entries are fetched from the configured Hedera topic and filtered by
-              this batch&apos;s GS1 identifiers.
-            </CardDescription>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Activity className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Hedera Custody Timeline</CardTitle>
+                <CardDescription>
+                  Entries are fetched from the configured Hedera topic and filtered by
+                  this batch&apos;s GS1 identifiers.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {topicId ? (
@@ -388,46 +477,58 @@ export default async function BatchTimelinePage({
             ) : null}
 
             {timelineError ? (
-              <div className="rounded border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-                {timelineError}
-              </div>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{timelineError}</AlertDescription>
+              </Alert>
             ) : null}
 
             {hasDatabaseLedgerOnly ? (
-              <div className="rounded border border-amber-300/40 bg-amber-500/10 p-4 text-sm text-amber-900">
-                Database events reference Hedera sequence numbers, but no matching
-                Mirror Node messages were found yet. Confirm the topic ID is
-                correct and run the workflow live to produce on-ledger entries.
-              </div>
+              <Alert className="bg-warning/10 border-warning/50">
+                <AlertCircle className="h-4 w-4 text-warning" />
+                <AlertDescription className="text-warning-foreground">
+                  Database events reference Hedera sequence numbers, but no matching
+                  Mirror Node messages were found yet. Confirm the topic ID is
+                  correct and run the workflow live to produce on-ledger entries.
+                </AlertDescription>
+              </Alert>
             ) : null}
+
             {timelineNote && !timelineError ? (
-              <div className="rounded border border-muted/60 bg-muted/40 p-4 text-sm text-muted-foreground">
-                {timelineNote}
-              </div>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>{timelineNote}</AlertDescription>
+              </Alert>
             ) : null}
 
             {timelineEntries.length === 0 && !timelineError && !timelineNote ? (
-              <p className="text-sm text-muted-foreground">
-                No Hedera messages have been recorded for this batch.
-              </p>
+              <EmptyState
+                icon={Activity}
+                title="No timeline entries"
+                description="No Hedera messages have been recorded for this batch yet. Timeline entries will appear here once custody events are published to the Hedera network."
+              />
             ) : null}
 
             {timelineEntries.map((entry) => (
               <div
                 key={`${entry.sequenceNumber}-${entry.consensusTimestamp}`}
-                className="relative border-l pl-6"
+                className="relative border-l-2 border-primary/30 pl-6 pb-4"
               >
-                <span className="absolute left-0 top-1.5 h-2 w-2 -translate-x-1/2 rounded-full bg-primary" />
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge variant="secondary" className="uppercase tracking-wide">
+                <span className="absolute left-0 top-1.5 h-3 w-3 -translate-x-1/2 rounded-full bg-primary ring-4 ring-background" />
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <Badge variant="secondary" className="uppercase tracking-wide font-semibold">
                     {formatEventType(entry.type)}
                   </Badge>
-                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Sequence #{entry.sequenceNumber}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatConsensusTimestamp(entry.consensusTimestamp)}
-                  </span>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Hash className="h-3 w-3" />
+                    <span className="uppercase tracking-wide font-medium">
+                      Sequence #{entry.sequenceNumber}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>{formatConsensusTimestamp(entry.consensusTimestamp)}</span>
+                  </div>
                 </div>
                 <dl className="mt-3 grid gap-2 text-sm md:grid-cols-2">
                   <div className="space-y-1">
@@ -455,8 +556,10 @@ export default async function BatchTimelinePage({
                     </dd>
                   </div>
                 </dl>
-                <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  <span>Running hash: {entry.runningHash}</span>
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+                  <span className="text-muted-foreground">
+                    Running hash: <span className="font-mono">{entry.runningHash}</span>
+                  </span>
                   {topicId ? (
                     <a
                       href={buildMirrorMessageUrl(
@@ -466,9 +569,10 @@ export default async function BatchTimelinePage({
                       )}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-medium text-primary underline-offset-4 hover:underline"
+                      className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
                     >
                       View on Mirror Node
+                      <ExternalLink className="h-3 w-3" />
                     </a>
                   ) : null}
                 </div>
@@ -492,31 +596,41 @@ export default async function BatchTimelinePage({
                   },
                 }}
                 prefetch={false}
-                className="inline-flex items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
+                className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
               >
                 Load older entries
+                <ChevronRight className="h-4 w-4" />
               </Link>
             ) : null}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2">
           <CardHeader>
-            <CardTitle>Database events</CardTitle>
-            <CardDescription>
-              Events stored in Postgres for this batch, ordered by creation time.
-            </CardDescription>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Database className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Database Events</CardTitle>
+                <CardDescription>
+                  Events stored in Postgres for this batch, ordered by creation time.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             {events.length === 0 ? (
-              <p className="text-muted-foreground">
-                No events have been recorded in the database for this batch.
-              </p>
+              <EmptyState
+                icon={Database}
+                title="No events"
+                description="No events have been recorded in the database for this batch."
+              />
             ) : null}
             {events.map((event) => (
-              <div key={event.id} className="rounded border p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="uppercase tracking-wide">
+              <div key={event.id} className="rounded-lg border-2 p-4 hover:bg-muted/30 transition-colors">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <Badge variant="outline" className="uppercase tracking-wide font-semibold">
                     {formatEventType(event.type)}
                   </Badge>
                   {event.type?.toUpperCase() === "MANUFACTURED" ? (
@@ -525,34 +639,43 @@ export default async function BatchTimelinePage({
                       <LabelIdentityZoomTrigger />
                     </>
                   ) : null}
-                  <span className="text-xs text-muted-foreground">
-                    {formatIsoDateTime(event.created_at)}
-                  </span>
                 </div>
-                <dl className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>HCS seq</span>
-                    <span>{event.hcs_seq_no ?? "—"}</span>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+                  <Calendar className="h-3 w-3" />
+                  <span>{formatIsoDateTime(event.created_at)}</span>
+                </div>
+                <dl className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">HCS Sequence</span>
+                    <Badge variant="secondary" className="font-mono text-xs">
+                      {event.hcs_seq_no ?? "—"}
+                    </Badge>
                   </div>
-                  <div className="flex justify-between">
-                    <span>HCS tx</span>
-                    <span className="font-mono">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">HCS Transaction</span>
+                    <span className="font-mono text-xs break-all text-right">
                       {event.hcs_tx_id ?? "—"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Payload hash</span>
-                    <span className="font-mono">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-muted-foreground">Payload Hash</span>
+                    <span className="font-mono text-xs break-all text-right">
                       {event.payload_hash ?? "—"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>From</span>
-                    <span>{formatFacilityId(event.from_facility_id)}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Building2 className="h-3 w-3" />
+                      From
+                    </span>
+                    <span className="font-medium">{formatFacilityId(event.from_facility_id)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>To</span>
-                    <span>{formatFacilityId(event.to_facility_id)}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Building2 className="h-3 w-3" />
+                      To
+                    </span>
+                    <span className="font-medium">{formatFacilityId(event.to_facility_id)}</span>
                   </div>
                 </dl>
               </div>

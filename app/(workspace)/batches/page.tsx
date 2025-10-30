@@ -6,6 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -15,7 +23,22 @@ import {
 } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/server";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, FileText, QrCode, ScanLine } from "lucide-react";
+import {
+  ArrowRight,
+  FileText,
+  QrCode,
+  ScanLine,
+  Package,
+  Download,
+  Eye,
+  Calendar,
+  Building2,
+  Hash,
+  Plus,
+  MoreVertical,
+} from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -158,77 +181,99 @@ export default async function BatchesPage() {
   const rows = (batches as BatchRow[] | null) ?? [];
 
   return (
-    <div className="space-y-10">
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              Batches
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              View recent batches scoped to your facility, check the latest custody event,
-              and jump into timelines or reports.
-            </p>
-          </div>
-          <Button asChild size="sm">
+    <div className="space-y-8">
+      <PageHeader
+        title="Batches"
+        description="View recent batches scoped to your facility, check the latest custody event, and jump into timelines or reports."
+        icon={Package}
+        actions={
+          <Button asChild size="lg">
             <Link href="/batches/new">
-              New batch
-              <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+              <Plus className="mr-2 h-5 w-5" aria-hidden="true" />
+              New Batch
             </Link>
           </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
+        }
+      />
+
+      <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
+        <p className="text-sm text-muted-foreground">
           Showing up to 25 most recent batches. Use Reports for full search and exports.
         </p>
-      </header>
+        <Badge variant="secondary" className="font-mono">
+          {rows.length} batch{rows.length !== 1 ? 'es' : ''}
+        </Badge>
+      </div>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-6 sm:grid-cols-3">
         {quickLinks.map(({ href, title, description, icon: Icon }) => (
-          <Card key={href} className="shadow-sm transition hover:shadow-md">
-            <CardHeader className="flex flex-row items-center gap-3 pb-2">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <CardTitle className="text-base font-semibold">{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <p>{description}</p>
-              <Button asChild variant="outline" size="sm">
-                <Link href={href}>
-                  Open
-                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </CardContent>
+          <Card
+            key={href}
+            className="group relative overflow-hidden border-2 transition-all hover:-translate-y-1 hover:shadow-xl"
+          >
+            <Link href={href} className="block">
+              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+                <div className="space-y-1 flex-1">
+                  <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors">
+                    {title}
+                  </CardTitle>
+                  <CardDescription className="text-sm leading-relaxed">
+                    {description}
+                  </CardDescription>
+                </div>
+                <div className="rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 p-2.5 group-hover:from-primary/20 group-hover:to-accent/20 transition-all">
+                  <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  Get Started
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </div>
+              </CardContent>
+            </Link>
           </Card>
         ))}
       </section>
 
-      <Card>
+      <Card className="border-2">
         <CardHeader>
-          <CardTitle>Recent batches</CardTitle>
-          <CardDescription>
-            Latest batches visible under your row-level security policies. Navigate to the timeline for Hedera details.
-          </CardDescription>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Package className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Recent Batches</CardTitle>
+              <CardDescription>
+                Latest batches visible under your row-level security policies
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {rows.length === 0 ? (
-            <p className="rounded border border-dashed border-muted-foreground/40 p-6 text-sm text-muted-foreground">
-              No batches found yet. Create your first batch to generate GS1 DataMatrix labels and publish a MANUFACTURED event.
-            </p>
+            <EmptyState
+              icon={Package}
+              title="No batches found"
+              description="Create your first batch to generate GS1 DataMatrix labels and publish a MANUFACTURED event."
+              action={{
+                label: "Create Batch",
+                onClick: () => {}
+              }}
+            />
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>GTIN</TableHead>
-                  <TableHead>Lot</TableHead>
-                  <TableHead>Expiry</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Current owner</TableHead>
-                  <TableHead>Latest event</TableHead>
-                  <TableHead>Seq #</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="font-semibold">Product</TableHead>
+                  <TableHead className="font-semibold">GTIN</TableHead>
+                  <TableHead className="font-semibold">Lot</TableHead>
+                  <TableHead className="font-semibold">Expiry</TableHead>
+                  <TableHead className="font-semibold">Quantity</TableHead>
+                  <TableHead className="font-semibold">Current Owner</TableHead>
+                  <TableHead className="font-semibold">Latest Event</TableHead>
+                  <TableHead className="font-semibold">Seq #</TableHead>
+                  <TableHead className="text-right font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -236,98 +281,146 @@ export default async function BatchesPage() {
                   const facility = resolveFacility(batch.facilities);
                   const latestEvent = resolveEvent(batch.events);
 
+                  const eventTypeColors: Record<string, string> = {
+                    MANUFACTURED: "bg-success/10 text-success border-success/20",
+                    HANDOVER: "bg-info/10 text-info border-info/20",
+                    RECEIVED: "bg-primary/10 text-primary border-primary/20",
+                    DISPENSED: "bg-accent/10 text-accent border-accent/20",
+                  };
+
                   return (
-                    <TableRow key={batch.id}>
-                      <TableCell className="max-w-[200px] truncate font-medium">
+                    <TableRow key={batch.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell className="max-w-[200px] truncate font-semibold">
                         {batch.product_name ?? "—"}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {batch.gtin}
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {batch.gtin}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="font-medium">{batch.lot}</TableCell>
-                      <TableCell>{formatDate(batch.expiry)}</TableCell>
-                      <TableCell>{formatQuantity(batch.qty)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-mono">
+                          {batch.lot}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm">
+                          <Calendar className="h-3 w-3 text-muted-foreground" />
+                          {formatDate(batch.expiry)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 font-semibold">
+                          <Package className="h-3 w-3 text-muted-foreground" />
+                          {formatQuantity(batch.qty)}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {facility?.name ? (
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {facility.name}
-                            </span>
-                            {facility.type ? (
-                              <span className="text-xs uppercase text-muted-foreground">
-                                {facility.type}
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm">
+                                {facility.name}
                               </span>
-                            ) : null}
+                              {facility.type && (
+                                <Badge variant="outline" className="w-fit text-xs uppercase mt-1">
+                                  {facility.type}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         ) : (
-                          batch.current_owner_facility_id ?? "—"
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {latestEvent ? (
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="secondary" className="w-fit uppercase">
+                          <div className="flex flex-col gap-2">
+                            <Badge
+                              variant="outline"
+                              className={`w-fit uppercase font-semibold ${eventTypeColors[latestEvent.type] || ""}`}
+                            >
                               {latestEvent.type}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
                               {formatDate(latestEvent.created_at)}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-sm text-muted-foreground">
-                            Pending
-                          </span>
+                          <Badge variant="secondary">Pending</Badge>
                         )}
                       </TableCell>
                       <TableCell>
                         {latestEvent?.hcs_seq_no ? (
-                          <span className="font-mono text-xs">
-                            #{latestEvent.hcs_seq_no}
-                          </span>
+                          <Badge variant="outline" className="font-mono">
+                            <Hash className="h-3 w-3 mr-1" />
+                            {latestEvent.hcs_seq_no}
+                          </Badge>
                         ) : (
-                          "—"
+                          <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <Button asChild variant="outline" size="sm">
-                            <Link
-                              href={{
-                                pathname: `/batches/${batch.id}`,
-                              }}
-                              prefetch={false}
-                            >
-                              Timeline
-                            </Link>
-                          </Button>
-                          <Button asChild variant="outline" size="sm">
-                            <a
-                              href={`/api/batches/${batch.id}/label?format=png`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Label PNG
-                            </a>
-                          </Button>
-                          <Button asChild variant="ghost" size="sm">
-                            <a
-                              href={buildReportUrl(batch.id, "pdf")}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              PDF
-                            </a>
-                          </Button>
-                          <Button asChild variant="ghost" size="sm">
-                            <a
-                              href={buildReportUrl(batch.id, "csv")}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              CSV
-                            </a>
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={{
+                                  pathname: `/batches/${batch.id}`,
+                                }}
+                                prefetch={false}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <Eye className="h-4 w-4" />
+                                View Timeline
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={`/api/batches/${batch.id}/label?format=png`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <QrCode className="h-4 w-4" />
+                                Download Label
+                              </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={buildReportUrl(batch.id, "pdf")}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <FileText className="h-4 w-4" />
+                                Export PDF
+                              </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={buildReportUrl(batch.id, "csv")}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <Download className="h-4 w-4" />
+                                Export CSV
+                              </a>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );

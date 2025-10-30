@@ -127,13 +127,14 @@ export default function Home() {
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
               Trace every custody hop with{" "}
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Hedera-backed confidence
+                Hedera proofs &amp; supOS live ops
               </span>
             </h1>
             <p className="mx-auto max-w-3xl text-lg text-muted-foreground sm:text-xl">
-              Unify GS1-compliant labeling, Hedera Consensus Service logging, and
-              Supabase-enforced access control to prove authenticity for every sealed
-              pack in under two seconds.
+              Unify GS1-compliant labeling, Hedera Consensus Service notarisation, a
+              supOS Unified Namespace, and Supabase-enforced access control so custody,
+              telemetry, and operators stay in lockstep from manufacturing through
+              dispense.
             </p>
           </div>
 

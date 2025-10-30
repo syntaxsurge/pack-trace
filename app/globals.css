@@ -79,9 +79,9 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    /* Primary */
+    /* Primary - Brighter for dark mode */
     --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
 
     /* Secondary */
     --secondary: 217.2 32.6% 17.5%;
@@ -91,39 +91,39 @@
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    /* Accent */
-    --accent: 263.4 70% 50.4%;
+    /* Accent - Brighter purple for dark mode */
+    --accent: 270 80% 70%;
     --accent-foreground: 210 40% 98%;
 
-    /* Destructive */
-    --destructive: 0 62.8% 30.6%;
+    /* Destructive - Brighter for visibility */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    /* Success */
-    --success: 142.1 70.6% 45.3%;
-    --success-foreground: 144.9 80.4% 10%;
+    /* Success - Brighter green with light text */
+    --success: 142 76% 45%;
+    --success-foreground: 210 40% 98%;
 
-    /* Warning */
-    --warning: 38 92% 50%;
-    --warning-foreground: 20.5 90.2% 48.2%;
+    /* Warning - Amber with light text */
+    --warning: 38 92% 60%;
+    --warning-foreground: 210 40% 98%;
 
-    /* Info */
-    --info: 199 89% 48%;
-    --info-foreground: 222.2 47.4% 11.2%;
+    /* Info - Brighter cyan with light text */
+    --info: 199 89% 60%;
+    --info-foreground: 210 40% 98%;
 
     /* Border */
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
 
     /* Ring */
-    --ring: 224.3 76.3% 48%;
+    --ring: 217.2 91.2% 59.8%;
 
     /* Chart colors */
     --chart-1: 217.2 91.2% 59.8%;
-    --chart-2: 263.4 70% 50.4%;
-    --chart-3: 142.1 70.6% 45.3%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 199 89% 48%;
+    --chart-2: 270 80% 70%;
+    --chart-3: 142 76% 45%;
+    --chart-4: 38 92% 60%;
+    --chart-5: 199 89% 60%;
   }
 }
 

@@ -15,6 +15,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -39,6 +40,8 @@ import {
 import { formatConsensusTimestamp } from "@/lib/hedera/format";
 import type { VerifyState, VerifyStatus } from "@/lib/verify/types";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle,
@@ -48,9 +51,11 @@ import {
   ExternalLink,
   ImageUp,
   Loader2,
+  Package,
   PencilLine,
   RefreshCw,
   ShieldAlert,
+  ScanLine,
 } from "lucide-react";
 
 type CustodyActionType = "RECEIVED" | "HANDOVER" | "DISPENSED";
@@ -1021,21 +1026,14 @@ export function ScannerClient({
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <section className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Scan GS1 DataMatrix codes
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Choose between the live camera, image upload, clipboard paste, or
-          manual entry. The camera mode prioritises the rear lens, tries
-          BarcodeDetector first, and falls back to ZXing when needed. All modes
-          parse GTIN, lot, and expiry locally before looking up the batch for
-          custody actions.
-        </p>
-      </section>
+      <PageHeader
+        title="Scan GS1 DataMatrix Codes"
+        description="Choose between the live camera, image upload, clipboard paste, or manual entry. The camera mode prioritises the rear lens, tries BarcodeDetector first, and falls back to ZXing when needed. All modes parse GTIN, lot, and expiry locally before looking up the batch for custody actions."
+        icon={ScanLine}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden border-2">
           <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
@@ -1250,14 +1248,21 @@ export function ScannerClient({
         </Card>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="border-2">
             <CardHeader>
-              <CardTitle className="text-sm font-semibold">
-                GS1 payload
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Raw scan decoded into GTIN, lot, and expiry.
-              </CardDescription>
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-primary/10 p-1.5">
+                  <Package className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">
+                    GS1 Payload
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Raw scan decoded into GTIN, lot, and expiry.
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {payloadError ? (
@@ -1317,14 +1322,21 @@ export function ScannerClient({
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-2">
             <CardHeader>
-              <CardTitle className="text-sm font-semibold">
-                Scan result
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Custody verdict and the latest Hedera entries for this pack.
-              </CardDescription>
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-primary/10 p-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">
+                    Scan Result
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Custody verdict and the latest Hedera entries for this pack.
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
               {verificationState.status === "idle" ? (
@@ -1572,15 +1584,22 @@ export function ScannerClient({
         </div>
       </div>
 
-      <Card>
+      <Card className="border-2">
         <CardHeader>
-          <CardTitle className="text-base font-semibold">
-            Custody actions
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Log the next custody hop. Updates are persisted immediately and, if
-            Hedera credentials are configured, mirrored to the Consensus Service.
-          </CardDescription>
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2">
+              <RefreshCw className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-semibold">
+                Custody Actions
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Log the next custody hop. Updates are persisted immediately and, if
+                Hedera credentials are configured, mirrored to the Consensus Service.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-4 text-sm sm:grid-cols-3">

@@ -29,9 +29,25 @@ export function MainNav({
   const pathname = usePathname();
 
   const isActive = (href: string) => {
+    // Exact match for root
     if (href === "/") {
       return pathname === "/";
     }
+
+    // Check if there's a more specific link that matches
+    const hasMoreSpecificMatch = links.some(
+      (link) =>
+        link.href !== href &&
+        link.href.startsWith(href) &&
+        (pathname === link.href || pathname.startsWith(`${link.href}/`))
+    );
+
+    // If there's a more specific match, this link shouldn't be active
+    if (hasMoreSpecificMatch) {
+      return false;
+    }
+
+    // Otherwise, check for exact match or child route
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -54,18 +70,24 @@ export function MainNav({
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "text-sm font-medium transition-colors",
+              "text-sm font-semibold transition-all duration-200 relative group",
               orientation === "horizontal"
-                ? "hover:text-foreground"
-                : "rounded-md px-2 py-2 hover:bg-muted",
+                ? "hover:text-primary"
+                : "rounded-lg px-3 py-2.5 hover:bg-muted",
               active && emphasizeActive
                 ? orientation === "horizontal"
-                  ? "text-foreground"
-                  : "bg-primary/10 text-primary"
+                  ? "text-primary"
+                  : "bg-primary/10 text-primary font-bold"
                 : "text-muted-foreground",
             )}
           >
             {link.label}
+            {orientation === "horizontal" && active && emphasizeActive && (
+              <span className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-primary rounded-full" />
+            )}
+            {orientation === "horizontal" && !active && (
+              <span className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-primary rounded-full scale-x-0 group-hover:scale-x-100 transition-transform duration-200" />
+            )}
           </Link>
         );
       })}

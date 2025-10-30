@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useActionState, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { LabelPreview } from "@/app/(workspace)/batches/new/_components/label-preview";
 import {
   batchLabelInputSchema,
@@ -16,6 +18,7 @@ import { createBatchAction } from "@/app/(workspace)/batches/new/actions";
 import type { CreateBatchActionState } from "@/app/(workspace)/batches/new/actions";
 import type { Gs1DatamatrixPayload } from "@/lib/labels/gs1";
 import { LabelIdentityPanel } from "@/app/(workspace)/batches/_components/label-identity-panel";
+import { Package, Hash, Calendar, CheckCircle2, Loader2, AlertCircle, Info, Building2 } from "lucide-react";
 
 const EMPTY_FORM = {
   productName: "",
@@ -89,133 +92,215 @@ export function BatchForm({ facilityName }: BatchFormProps) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create batch</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form action={formAction} className="space-y-6">
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <p>
-                Labels are generated with GS1 DataMatrix using Application
-                Identifiers (01) GTIN, (10) lot, and (17) expiry. All records are
-                scoped to <span className="font-semibold">{facilityName}</span>.
-              </p>
+    <div className="grid gap-8 lg:grid-cols-[1fr_0.8fr]">
+      <div className="space-y-6">
+        <Card className="border-2">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Package className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl">Batch Details</CardTitle>
+                <CardDescription>Enter product information for GS1 DataMatrix label</CardDescription>
+              </div>
             </div>
+          </CardHeader>
+          <CardContent>
+            <form action={formAction} className="space-y-6">
+              <Alert className="bg-info/5 border-info/20">
+                <Info className="h-4 w-4 text-info" />
+                <AlertDescription className="text-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building2 className="h-3 w-3" />
+                    <span className="font-semibold">{facilityName}</span>
+                  </div>
+                  Labels use GS1 DataMatrix with AI: (01) GTIN, (10) Lot, and (17) Expiry
+                </AlertDescription>
+              </Alert>
 
-            <div className="grid gap-5">
-              <div className="grid gap-2">
-                <Label htmlFor="productName">Product name</Label>
-                <Input
-                  id="productName"
-                  name="productName"
-                  placeholder="Amoxicillin 500mg Capsules"
-                  value={formValues.productName}
-                  onChange={handleChange}
-                  required
-                  minLength={1}
-                  maxLength={100}
-                />
-                {state.errors.productName ? (
-                  <p className="text-sm text-destructive">
-                    {state.errors.productName}
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="productName" className="text-sm font-semibold">Product Name</Label>
+                  <div className="relative">
+                    <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="productName"
+                      name="productName"
+                      placeholder="Amoxicillin 500mg Capsules"
+                      className="pl-10 h-11"
+                      value={formValues.productName}
+                      onChange={handleChange}
+                      required
+                      minLength={1}
+                      maxLength={100}
+                    />
+                  </div>
+                  {state.errors.productName && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="h-3 w-3" />
+                      <AlertDescription className="text-xs">
+                        {state.errors.productName}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="gtin" className="text-sm font-semibold">GTIN</Label>
+                  <div className="relative">
+                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="gtin"
+                      name="gtin"
+                      inputMode="numeric"
+                      pattern="\d{8,14}"
+                      placeholder="09506000134352"
+                      className="pl-10 h-11 font-mono"
+                      value={formValues.gtin}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    Supports GTIN-8/12/13/14 (padded to 14 digits)
                   </p>
-                ) : null}
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="gtin">GTIN</Label>
-                <Input
-                  id="gtin"
-                  name="gtin"
-                  inputMode="numeric"
-                  pattern="\d{8,14}"
-                  placeholder="09506000134352"
-                  value={formValues.gtin}
-                  onChange={handleChange}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Supports GTIN-8/12/13/14 (padded to 14 digits for encoding).
-                </p>
-                {state.errors.gtin ? (
-                  <p className="text-sm text-destructive">{state.errors.gtin}</p>
-                ) : null}
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="lot">Lot / batch code</Label>
-                <Input
-                  id="lot"
-                  name="lot"
-                  placeholder="A123"
-                  value={formValues.lot}
-                  onChange={handleChange}
-                  required
-                  maxLength={20}
-                />
-                {state.errors.lot ? (
-                  <p className="text-sm text-destructive">{state.errors.lot}</p>
-                ) : null}
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="expiry">Expiry date</Label>
-                  <Input
-                    id="expiry"
-                    name="expiry"
-                    type="date"
-                    value={formValues.expiry}
-                    onChange={handleChange}
-                    required
-                    min="2020-01-01"
-                  />
-                  {state.errors.expiry ? (
-                    <p className="text-sm text-destructive">
-                      {state.errors.expiry}
-                    </p>
-                  ) : null}
+                  {state.errors.gtin && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="h-3 w-3" />
+                      <AlertDescription className="text-xs">
+                        {state.errors.gtin}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="quantity">Quantity</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="lot" className="text-sm font-semibold">Lot / Batch Code</Label>
                   <Input
-                    id="quantity"
-                    name="quantity"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={formValues.quantity}
+                    id="lot"
+                    name="lot"
+                    placeholder="A123"
+                    className="h-11 font-mono"
+                    value={formValues.lot}
                     onChange={handleChange}
                     required
+                    maxLength={20}
                   />
-                  {state.errors.quantity ? (
-                    <p className="text-sm text-destructive">
-                      {state.errors.quantity}
-                    </p>
-                  ) : null}
+                  {state.errors.lot && (
+                    <Alert variant="destructive" className="py-2">
+                      <AlertCircle className="h-3 w-3" />
+                      <AlertDescription className="text-xs">
+                        {state.errors.lot}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="expiry" className="text-sm font-semibold">Expiry Date</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="expiry"
+                        name="expiry"
+                        type="date"
+                        className="pl-10 h-11"
+                        value={formValues.expiry}
+                        onChange={handleChange}
+                        required
+                        min="2020-01-01"
+                      />
+                    </div>
+                    {state.errors.expiry && (
+                      <Alert variant="destructive" className="py-2">
+                        <AlertCircle className="h-3 w-3" />
+                        <AlertDescription className="text-xs">
+                          {state.errors.expiry}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity" className="text-sm font-semibold">Quantity</Label>
+                    <div className="relative">
+                      <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="quantity"
+                        name="quantity"
+                        type="number"
+                        min={1}
+                        step={1}
+                        className="pl-10 h-11"
+                        value={formValues.quantity}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                    {state.errors.quantity && (
+                      <Alert variant="destructive" className="py-2">
+                        <AlertCircle className="h-3 w-3" />
+                        <AlertDescription className="text-xs">
+                          {state.errors.quantity}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {state.errors.form ? (
-              <p className="text-sm text-destructive">{state.errors.form}</p>
-            ) : null}
-            {state.status === "success" ? (
-              <div className="space-y-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+              {state.errors.form && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{state.errors.form}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="submit"
+                  disabled={isPending}
+                  size="lg"
+                  className="w-full sm:w-auto min-w-[200px]"
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating Batch...
+                    </>
+                  ) : (
+                    <>
+                      <Package className="mr-2 h-4 w-4" />
+                      Create Batch
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {state.status === "success" && (
+          <Alert className="bg-success/10 border-success/50 border-2">
+            <CheckCircle2 className="h-5 w-5 text-success" />
+            <AlertDescription>
+              <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span>{state.message ?? "Batch created."}</span>
-                  {state.batchId ? (
-                    <Button asChild size="sm" variant="secondary">
+                  <span className="font-semibold text-success">
+                    {state.message ?? "Batch created successfully!"}
+                  </span>
+                  {state.batchId && (
+                    <Button asChild size="sm" variant="default">
                       <Link href={`/batches/${state.batchId}`} prefetch={false}>
-                        View timeline
+                        View Timeline
                       </Link>
                     </Button>
-                  ) : null}
+                  )}
                 </div>
-                {lastIdentity ? (
+                {lastIdentity && (
                   <LabelIdentityPanel
                     labelText={lastIdentity.payload.humanReadable}
                     batchId={state.batchId}
@@ -228,24 +313,20 @@ export function BatchForm({ facilityName }: BatchFormProps) {
                     note="This label is deterministic—reprint or download it anytime from the batch page."
                     printLabel="Print label"
                   />
-                ) : null}
+                )}
               </div>
-            ) : null}
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
 
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "Creating..." : "Create batch"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <LabelPreview
-        payload={preview?.payload ?? null}
-        productName={formValues.productName}
-        quantity={preview?.quantity ?? null}
-      />
+      <div className="lg:sticky lg:top-24 lg:h-fit">
+        <LabelPreview
+          payload={preview?.payload ?? null}
+          productName={formValues.productName}
+          quantity={preview?.quantity ?? null}
+        />
+      </div>
     </div>
   );
 }
