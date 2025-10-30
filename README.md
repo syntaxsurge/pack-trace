@@ -10,6 +10,14 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
 - Custody scanner integrates `/api/facilities` directory results for handover selection, removing the need to memorise facility UUIDs.
 - supOS CE Unified Namespace captures custody events, temperature telemetry, and cold-chain alerts to power live operator dashboards.
 
+## Hackathon Scoring Map
+
+- **Innovation**: Combines Hedera custody proofs with supOS Unified Namespace modeling, Node-RED automations, and AI-backed cold-chain summaries so operations and compliance share the same live view.
+- **Technical Feasibility**: Implements an at-least-once outbox publisher (`supos_outbox`, `scripts/supos-bridge-worker.ts`) with MQTT QoS 1, SSE streaming for the UI (`/api/stream/supos`), and deterministic fallbacks when the AI summariser is unavailable.
+- **Business Value**: Reduces counterfeit and recall risk through GS1-compliant labeling, verifiable handovers, and real-time cold-chain monitoring fed into operator dashboards and public `/verify`.
+- **supOS Feature Utilisation**: Uses Namespace topic modeling with History, Node-RED Event Flow (`flows/supos-eventflow-coldchain.json`), internal TimescaleDB/Postgres storage, and Dashboards backed by the default pg data source.
+- **Presentation & Delivery**: Ships a scripted demo runbook, environment presets, and profile switching so the 10-minute video captures every custody hop, on-chain proof, and live supOS alert without retakes.
+
 ## Architecture
 
 ### Frontend
@@ -30,7 +38,7 @@ pack-trace is a pack-level traceability control plane that combines GS1-complian
   - `events` – custody state transitions (`MANUFACTURED`, `HANDOVER`, `RECEIVED`, `DISPENSED`, `RECALLED`) enriched with Hedera hashes.
   - `sensors/tempC` – live temperature telemetry streamed by shop-floor devices or the provided simulator.
   - `alerts/coldchain` – Node-RED Event Flow emits cold-chain excursions enriched with AI-generated summaries.
-- supOS converts these topics into modeled entities with History enabled so Dashboards can read from the internal TimescaleDB/Postgres store without additional ETL.
+- supOS converts these topics into modeled entities with History enabled so Dashboards can read from the internal TimescaleDB/Postgres store without additional ETL, while `/api/stream/supos` provides live SSE updates for the workspace UI.
 
 ### Distributed Ledger
 - Hedera Consensus Service topic IDs recorded on `batches.topic_id`.
@@ -194,6 +202,7 @@ timeline.entries.forEach((entry) => {
 - `npm run typecheck` – TypeScript without emit (required before merging).
 - `npm run seed:demo` – provision demo facilities, accounts, batches, events, and receipts in Supabase (requires service role key).
 - `npm run worker:supos` – drain the Supabase `supos_outbox` table and publish each record to the supOS MQTT broker with QoS 1 retries.
+- `npm run sim:temp -- <batchId>` – stream synthetic temperature telemetry to `trace/batches/{batchId}/sensors/tempC` for dashboards and alert testing.
 
 ## Demo data & credentials
 
@@ -213,6 +222,10 @@ Demo logins after seeding:
 - Auditor reviewer – `auditor@packtrace.app`
 
 Each account uses the shared demo password (or the override you provided) and can be rotated safely by re-running the script.
+
+## Demo Runbook
+
+Record the 10-minute walkthrough using the scripted checklist in `docs/demo-runbook.md`. It covers environment preparation, camera/printing tips, user profile sequencing, supOS cut-ins, and narration beats so the final edit captures every custody hop, Hedera proof, and cold-chain alert in a single take.
 
 ## Reference Links
 
