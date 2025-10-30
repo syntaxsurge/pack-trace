@@ -32,9 +32,11 @@ create table public.batches (
   lot text not null,
   expiry date not null,
   qty integer not null check (qty > 0),
+  product_name text not null,
   current_owner_facility_id uuid references public.facilities (id) on delete set null,
   label_text text not null check (char_length(trim(label_text)) > 0),
   topic_id text,
+  pending_receipt_to_facility_id uuid references public.facilities (id) on delete set null,
   created_by_user_id uuid references public.users (id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -45,6 +47,7 @@ create table public.events (
   type event_type not null,
   from_facility_id uuid references public.facilities (id) on delete set null,
   to_facility_id uuid references public.facilities (id) on delete set null,
+  handover_event_id uuid references public.events (id) on delete set null,
   hcs_tx_id text not null check (char_length(trim(hcs_tx_id)) > 0),
   hcs_seq_no bigint,
   hcs_running_hash text,
@@ -54,6 +57,9 @@ create table public.events (
   check (from_facility_id is not null or to_facility_id is not null),
   check (hcs_seq_no is null or hcs_seq_no >= 0)
 );
+
+alter table public.batches
+  add column last_handover_event_id uuid references public.events (id) on delete set null;
 
 create table public.receipts (
   id uuid primary key default gen_random_uuid(),
@@ -65,14 +71,31 @@ create table public.receipts (
   created_at timestamptz not null default now()
 );
 
+create table public.idempotency_keys (
+  key text primary key,
+  event_id uuid references public.events (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
 -- Helpful indexes
 create index batches_gtin_idx on public.batches (gtin);
 create index batches_lot_idx on public.batches (lot);
 create unique index batches_gtin_lot_key on public.batches (gtin, lot);
+create index batches_pending_receipt_idx on public.batches (pending_receipt_to_facility_id);
 create index events_batch_idx on public.events (batch_id);
 create index events_created_at_idx on public.events (created_at desc);
 create index events_type_created_at_idx on public.events (type, created_at desc);
 create unique index events_payload_hash_key on public.events (payload_hash);
+create unique index events_once_manufactured_idx
+  on public.events (batch_id)
+  where type = 'MANUFACTURED';
+create unique index events_once_dispensed_idx
+  on public.events (batch_id)
+  where type = 'DISPENSED';
+create unique index events_receive_once_per_handover_idx
+  on public.events (handover_event_id)
+  where type = 'RECEIVED'
+    and handover_event_id is not null;
 create index receipts_batch_idx on public.receipts (batch_id);
 create unique index receipts_shortcode_key on public.receipts (shortcode);
 
