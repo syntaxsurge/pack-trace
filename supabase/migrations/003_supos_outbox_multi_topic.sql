@@ -1,21 +1,8 @@
-create table if not exists public.supos_outbox (
-  id bigserial primary key,
-  event_id uuid not null references public.events(id) on delete cascade,
-  batch_id uuid not null references public.batches(id) on delete cascade,
-  topic text not null,
-  payload jsonb not null,
-  status text not null default 'PENDING' check (status in ('PENDING','IN_PROGRESS','SENT','FAILED')),
-  attempts int not null default 0,
-  next_retry_at timestamptz not null default now(),
-  last_error text,
-  claimed_by text,
-  claimed_at timestamptz,
-  published_at timestamptz,
-  created_at timestamptz not null default now()
-);
+-- Allow publishing the same event payload to multiple SupOS topics
+drop index if exists supos_outbox_event_id_ux;
 
-create unique index if not exists supos_outbox_event_topic_ux on public.supos_outbox(event_id, topic);
-create index if not exists supos_outbox_status_next_retry_idx on public.supos_outbox(status, next_retry_at);
+create unique index if not exists supos_outbox_event_topic_ux
+  on public.supos_outbox(event_id, topic);
 
 create or replace function public.enqueue_supos_outbox() returns trigger as $$
 declare
@@ -91,33 +78,3 @@ begin
   return NEW;
 end
 $$ language plpgsql;
-
-drop trigger if exists trg_enqueue_supos_outbox on public.events;
-create trigger trg_enqueue_supos_outbox
-after insert on public.events
-for each row execute function public.enqueue_supos_outbox();
-
-create or replace function public.claim_supos_outbox(p_worker_id text, p_batch int)
-returns setof public.supos_outbox
-language plpgsql
-as $$
-declare
-  r public.supos_outbox%rowtype;
-begin
-  for r in
-    select *
-    from public.supos_outbox
-    where status = 'PENDING' and next_retry_at <= now()
-    order by created_at
-    for update skip locked
-    limit p_batch
-  loop
-    update public.supos_outbox
-    set status = 'IN_PROGRESS', claimed_by = p_worker_id, claimed_at = now()
-    where id = r.id
-    returning * into r;
-    return next r;
-  end loop;
-  return;
-end;
-$$;

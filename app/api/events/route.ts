@@ -742,7 +742,8 @@ export async function POST(request: Request) {
     idempotencyKeyCreated = false;
   }
 
-  const suposeTopic = `trace/batches/${batch.id}/events`;
+  const suposeTopicPerBatch = `trace/batches/${batch.id}/events`;
+  const suposeTopicAggregate = `trace/events`;
   const suposePayload = {
     v: payload.v,
     type: payload.type,
@@ -767,7 +768,10 @@ export async function POST(request: Request) {
     },
   };
 
-  publishToSupos(suposeTopic, suposePayload).catch((error) => {
+  publishToSupos(suposeTopicPerBatch, suposePayload).catch((error) => {
+    console.warn("[supos] publish from API failed (outbox worker will retry)", error);
+  });
+  publishToSupos(suposeTopicAggregate, suposePayload).catch((error) => {
     console.warn("[supos] publish from API failed (outbox worker will retry)", error);
   });
 
