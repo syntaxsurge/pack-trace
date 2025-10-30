@@ -3,12 +3,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { publishCustodyEvent } from "@/lib/hedera/publisher";
+import type { CustodyEventType } from "@/lib/hedera/types";
 import { sha256 } from "@/lib/hedera/hash";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { CustodyEventType } from "@/lib/hedera/types";
+import { publishToSupos } from "@/lib/supos/publisher";
 
 const IDEMPOTENCY_HEADER = "x-idempotency-key";
+
+export const runtime = "nodejs";
 
 const requestSchema = z.object({
   batchId: z.string().uuid().optional(),
@@ -738,6 +741,35 @@ export async function POST(request: Request) {
       .eq("key", idempotencyKey);
     idempotencyKeyCreated = false;
   }
+
+  const suposeTopic = `trace/batches/${batch.id}/events`;
+  const suposePayload = {
+    v: payload.v,
+    type: payload.type,
+    batch: {
+      id: batch.id,
+      gtin: batch.gtin,
+      lot: batch.lot,
+      exp: batch.expiry,
+    },
+    actor: payload.actor,
+    to: payload.to,
+    ts: payload.ts,
+    prev: payload.prev,
+    meta: payload.meta,
+    event: {
+      id: eventId,
+      hederaDelivered,
+      hcsTxId: transactionId,
+      hcsSeqNo: sequenceNumber,
+      hcsRunningHash: runningHash,
+      payloadHash,
+    },
+  };
+
+  publishToSupos(suposeTopic, suposePayload).catch((error) => {
+    console.warn("[supos] publish from API failed (outbox worker will retry)", error);
+  });
 
   return NextResponse.json(
     {

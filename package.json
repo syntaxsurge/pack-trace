@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "db:push": "tsx -r dotenv/config scripts/db-push.ts",
     "db:reset": "tsx -r dotenv/config scripts/db-reset.ts",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "worker:supos": "tsx -r dotenv/config scripts/supos-bridge-worker.ts"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.54.0",
@@ -25,10 +26,14 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.511.0",
+    "mqtt": "^5.14.1",
     "next": "16.0.0",
     "next-pwa": "^5.6.0",
     "next-themes": "^0.4.6",
+    "mqtt": "^5.14.1",
+    "pino": "^10.1.0",
     "pdfmake": "^0.2.20",
+    "pino": "^10.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "supabase": "^2.54.10",
