@@ -1,6 +1,14 @@
 import { z } from "zod";
 
 const LOT_PATTERN = /^[A-Za-z0-9\-_.+/]{1,20}$/;
+const HYPHEN_LIKE_CHARS = /[\u2010-\u2015\u2212\u2043\uFF0D]/g;
+
+function normalizeLot(value: string): string {
+  return value
+    .trim()
+    .normalize("NFKC")
+    .replace(HYPHEN_LIKE_CHARS, "-");
+}
 
 export const batchLabelInputSchema = z.object({
   productName: z
@@ -14,8 +22,11 @@ export const batchLabelInputSchema = z.object({
     .regex(/^\d{8,14}$/, "GTIN must be 8, 12, 13, or 14 digits."),
   lot: z
     .string()
-    .trim()
-    .regex(LOT_PATTERN, "Lot must be 1-20 characters (letters, numbers, -_.+/)."),
+    .transform((value) => normalizeLot(value))
+    .refine(
+      (value) => LOT_PATTERN.test(value),
+      "Lot must be 1-20 characters (letters, numbers, -_.+/).",
+    ),
   expiry: z
     .string()
     .trim()

@@ -4,20 +4,16 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 
 ## Problem (0:00–0:20)
 - Shot: Landing page `/`
-- Lower‑third: “Counterfeits • Opaque custody • Painful recalls”
-- VO: “Counterfeits slip through. Custody is opaque. Recalls are slow. We fix that with verifiable custody and real‑time operations.”
+- VO: “Counterfeits and quality failures cost lives—WHO says at least 1 in 10 medical products in Low and Middle-Income Countries is substandard or falsified. In the U.S., Drug Supply Chain Security Act now pushes interoperable, electronic tracking because paper trails fail. Temperature excursions remain a logistics risk, demanding continuous monitoring. Our demo ties it together: public custody on Hedera, live monitoring in supOS.”
 
 ## Solution (0:20–0:45)
 - Shot: Stay on hero; hover “Get Started”
 - Lower‑third: “Custody → Hedera • Operations → supOS”
 - VO: “supOS runs our real‑time factory data (UNS/MQTT/Node‑RED/dashboards); Hedera gives us the public, immutable custody log (HCS/Mirror). We’re using both layers because operations and compliance are different problems.”
 
-## Architecture (0:45–1:05)
-- Shot: Single diagram: Pack‑Trace → Hedera HCS/Mirror; Pack‑Trace → supOS MQTT/UNS → Database → Dashboards
-- VO: “The app signs events to Hedera and publishes JSON to supOS. supOS stores history for operators; HashScan/Mirror provides the public proof.”
-
 ## Create Batch (1:05–1:55)
 - Shot: Log in as Manufacturer → `/batches/new`
+- VO: “We’re logged in as Manufacturer. On the Create Batch form, enter the fields: Product, GTIN, Lot, Expiry, and Quantity.”
 - Fill exactly:
   - Product: Ibuprofen 200mg Tablets
   - GTIN: 07612345678900
@@ -25,7 +21,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
   - Expiry: 2027‑06‑30
   - Quantity: 240
 - Click Create → land on `/batches/[id]` (label preview + on‑chain panel)
-- VO: “We register a GS1 batch with print‑ready labeling and on‑chain context.”
+- VO: “Batch created; label preview and on‑chain panel are ready.”
 
 ## Print → Tape → Scan (1:55–2:30)
 - Shot: Click Print; tape the label to the package.
@@ -35,22 +31,24 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 ## Manufacturer Handover (2:30–3:00)
 - Shot: `/scan` → Handover → choose Distributor (toast confirms)
 - Lower‑third: “Outbox QoS‑1 → MQTT 1883 → supOS”
-- VO: “We hand over to the distributor; the event is persisted and streamed to supOS.”
+- VO: “Still logged in as Manufacturer, we hand over to the Distributor; the event is persisted and streamed to supOS.”
+- VO: “Now log out as Manufacturer and log in as Distributor.”
 
 ## Distributor Receive (3:00–3:25)
-- Shot: Distributor → `/scan` → Receive
-- VO: “Only the intended recipient can receive while a pending handover exists.”
+- Shot: Log in as Distributor → `/scan` → Receive
+- VO: “We’re logged in as Distributor; only the intended recipient can receive while a pending handover exists.”
+- VO: “After receiving, log out as Distributor and log in as Distributor again for the next handover, or proceed directly if already on the page.”
 
 ## Distributor Handover → Pharmacy (3:25–3:50)
-- Shot: Distributor → `/scan` → Handover → Pharmacy
-- VO: “Custody moves downstream.”
+- Shot: Still as Distributor → `/scan` → Handover → choose Pharmacy
+- VO: “As Distributor we hand over to the Pharmacy. Now log out as Distributor and log in as Pharmacy.”
 
 ## Pharmacy Receive (3:50–4:15)
-- Shot: Pharmacy → `/scan` → Receive
-- VO: “Pharmacy confirms receipt; dispense unlocks.”
+- Shot: Log in as Pharmacy → `/scan` → Receive
+- VO: “We’re logged in as Pharmacy; we confirm receipt and dispense unlocks.”
 
 ## Pharmacy Dispense (4:15–4:40)
-- Shot: Pharmacy → `/scan` → Dispense
+- Shot: Still as Pharmacy → `/scan` → Dispense
 - VO: “Only the current owner with pharmacy role can dispense.”
 
 ## Hedera Proof: HashScan (4:40–5:10)
