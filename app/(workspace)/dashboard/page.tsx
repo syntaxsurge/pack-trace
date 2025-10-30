@@ -504,7 +504,7 @@ export default async function DashboardPage() {
                 description="Create your first batch to generate GS1 DataMatrix labels and publish a manufacturing event."
                 action={{
                   label: "Create Batch",
-                  onClick: () => {},
+                  href: "/batches/new",
                 }}
               />
             ) : (

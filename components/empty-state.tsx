@@ -1,14 +1,16 @@
-import { LucideIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import Link from "next/link";
+import { LucideIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
-  icon?: LucideIcon
-  title: string
-  description: string
+  icon?: LucideIcon;
+  title: string;
+  description: string;
   action?: {
-    label: string
-    onClick: () => void
-  }
+    label: string;
+    href: string;
+  };
 }
 
 export function EmptyState({
@@ -29,8 +31,10 @@ export function EmptyState({
         {description}
       </p>
       {action && (
-        <Button onClick={action.onClick}>{action.label}</Button>
+        <Button asChild>
+          <Link href={action.href}>{action.label}</Link>
+        </Button>
       )}
     </div>
-  )
+  );
 }
