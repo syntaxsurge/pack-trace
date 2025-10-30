@@ -531,7 +531,7 @@ export default async function BatchTimelinePage({
                 <dl className="mt-3 grid gap-2 text-sm md:grid-cols-2">
                   <div className="space-y-1">
                     <dt className="text-muted-foreground">Actor facility</dt>
-                    <dd className="font-medium">
+                    <dd className="font-medium break-all">
                       {formatFacilityId(entry.actor.facilityId)}
                     </dd>
                   </div>
@@ -543,20 +543,21 @@ export default async function BatchTimelinePage({
                   </div>
                   <div className="space-y-1">
                     <dt className="text-muted-foreground">Recipient facility</dt>
-                    <dd className="font-medium">
+                    <dd className="font-medium break-all">
                       {formatFacilityId(entry.to?.facilityId)}
                     </dd>
                   </div>
                   <div className="space-y-1">
                     <dt className="text-muted-foreground">Linked hash</dt>
-                    <dd className="font-mono text-xs">
+                    <dd className="font-mono text-xs break-all">
                       {entry.prev ?? "—"}
                     </dd>
                   </div>
                 </dl>
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
-                  <span className="text-muted-foreground">
-                    Running hash: <span className="font-mono">{entry.runningHash}</span>
+                  <span className="text-muted-foreground break-all">
+                    Running hash:{" "}
+                    <span className="font-mono break-all">{entry.runningHash}</span>
                   </span>
                   {topicId ? (
                     <a
