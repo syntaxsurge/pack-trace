@@ -341,21 +341,19 @@ export default async function BatchTimelinePage({
         <SuposAlertBanner batchId={batch.id} enabled={suposConfig.enabled} />
 
         {labelPayload ? (
-          <div className="lg:sticky lg:top-24">
-            <LabelIdentityPanel
-              labelText={labelPayload.humanReadable}
-              batchId={batch.id}
-              productName={batch.product_name}
-              gtin={labelPayload.gtin14}
-              lot={labelPayload.lot}
-              expiry={labelPayload.expiryIsoDate}
-              quantity={batch.qty}
-              facilityName={null}
-              userRole={userRole}
-              printLabel="Reprint label"
-              note="Labels are generated as GS1 DataMatrix symbols with a fixed checksum. Reprint without scaling for reliable scans."
-            />
-          </div>
+          <LabelIdentityPanel
+            labelText={labelPayload.humanReadable}
+            batchId={batch.id}
+            productName={batch.product_name}
+            gtin={labelPayload.gtin14}
+            lot={labelPayload.lot}
+            expiry={labelPayload.expiryIsoDate}
+            quantity={batch.qty}
+            facilityName={null}
+            userRole={userRole}
+            printLabel="Reprint label"
+            note="Labels are generated as GS1 DataMatrix symbols with a fixed checksum. Reprint without scaling for reliable scans."
+          />
         ) : batch.label_text ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
