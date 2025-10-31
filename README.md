@@ -221,16 +221,11 @@ Use this when submitting to a marketplace or judge who deploys via a template an
   ```bash
   docker buildx create --use --name nodeopsbuilder || true
   # Supply public Supabase vars for Next.js build-time validation
-  export NEXT_PUBLIC_SUPABASE_URL="https://<your-project>.supabase.co"
-  export NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon key>"
-  export SUPABASE_SERVICE_ROLE_KEY="placeholder"   # real value supplied at runtime
-  export NEXT_PUBLIC_NETWORK="testnet"
-
+  # One-liner (avoids multi-line quoting issues):
   docker buildx build --platform linux/amd64 -t $IMAGE \
-    --build-arg NEXT_PUBLIC_SUPABASE_URL \
-    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY \
-    --build-arg SUPABASE_SERVICE_ROLE_KEY \
-    --build-arg NEXT_PUBLIC_NETWORK \
+    --build-arg NEXT_PUBLIC_SUPABASE_URL="https://<your-project>.supabase.co" \
+    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon key>" \
+    --build-arg NEXT_PUBLIC_NETWORK="testnet" \
     --push .
   ```
 - Verify architecture and visibility:
