@@ -47,7 +47,23 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - Shot: Still as Pharmacy → `/scan` → Dispense
 - VO: “We dispense. The final event is recorded on Hedera and reflected in supOS; custody controls are now closed.”
 
-## supOS Namespace + Topics (5:10–6:00)
+## 8. Overview Dashboard (4:20–4:40)
+- Shot: `/dashboard` → facility profile card, stats, recent batches, recent custody events
+- VO: “Back on the overview dashboard, we see our facility profile, summary stats, recent batches, and recent custody events. Empty states guide first‑time users to create a batch.”
+
+## 9. Batches List & Actions (4:40–4:55)
+- Shot: `/batches` → recent batches table
+- VO: “The batches page lists recent batches with quick actions. Open the actions menu to reprint labels, download assets, or jump straight to the timeline.”
+
+## 10. Batch Timeline Page (4:55–5:20)
+- Shot: From `/batches` actions → ‘View timeline’ → `/batches/[id]`
+- VO: “The batch timeline view shows metadata, custody events, and Hedera links. ‘View on HashScan’ opens the explorer; ‘Open Mirror feed’ shows the raw topic messages. The latest sequence number, topic ID, and links are always visible.”
+
+## 11. Reports Export (5:20–5:40)
+- Shot: `/reports` → search by GTIN/lot/product → export PDF or CSV
+- VO: “The reports page exports custody as PDF or CSV. The PDF includes a facility certificate with the batch summary, custody timeline, on‑chain sequence references, and an event ledger you can share with auditors.”
+
+## supOS Namespace + Topics (5:40–6:10)
 - Shot: supOS → Namespace → modeled topics (History ON)
 - Lower‑third: “trace/events = canonical custody stream (real‑time)”
 - VO: “`trace/events` is the canonical custody stream used by dashboards—this is real‑time from the app.”
