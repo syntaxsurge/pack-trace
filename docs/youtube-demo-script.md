@@ -33,23 +33,19 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - Lower‑third: “Outbox QoS‑1 → MQTT 1883 → supOS”
 - VO: “Still logged in as Manufacturer, we hand over to the Distributor; the event is notarized on Hedera—click ‘View on HashScan’ to see the on‑chain sequence number—and it’s then persisted and streamed to supOS.”
 
-## 6. Distributor Receive & Handover → Pharmacy (3:00–3:25)
-- VO: “Now log out as Manufacturer and log in as Distributor.”
-- Shot: Log in as Distributor → `/scan` → Receive
-- VO: “We’re logged in as Distributor; only the intended recipient can receive while a pending handover exists.”
-- VO: “After receiving, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS.”
+## 6. Distributor Receive & Handover → Pharmacy (3:00–3:40)
+- VO: “Log out as Manufacturer, then log in as Distributor.”
+- Shot: Distributor → `/scan` → Receive
+- VO: “As Distributor, we receive the batch. The page shows the Hedera sequence with a ‘View on HashScan’ link, and the event appears in supOS.”
 - Shot: Still as Distributor → `/scan` → Handover → choose Pharmacy
-- VO: “As Distributor we hand over to the Pharmacy. After handover, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS. Now log out as Distributor and log in as Pharmacy.”
+- VO: “Then we hand over to Pharmacy—the on‑chain sequence updates, and the handover streams into supOS.”
+- VO: “Log out as Distributor, then log in as Pharmacy.”
 
-## Pharmacy Receive & Dispense (3:50–4:15)
+## 7. Pharmacy Receive & Dispense (3:50–4:20)
 - Shot: Log in as Pharmacy → `/scan` → Receive
-- VO: “We’re logged in as Pharmacy; we confirm receipt and dispense unlocks. “After receiving, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS.”
+- VO: “As Pharmacy, we receive the batch—on‑chain and supOS both update—and dispense becomes available.”
 - Shot: Still as Pharmacy → `/scan` → Dispense
-- VO: “Only the current owner with pharmacy role can dispense. “After dispensing, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS”
-
-## Hedera Proof: HashScan (4:40–5:10)
-- Shot: `/batches/[id]` → “View on HashScan”; show matching sequence numbers and timestamps
-- VO: “Public proof—sequence numbers and timestamps align with our custody trail.”
+- VO: “We dispense. The final event is recorded on Hedera and reflected in supOS; custody controls are now closed.”
 
 ## supOS Namespace + Topics (5:10–6:00)
 - Shot: supOS → Namespace → modeled topics (History ON)
@@ -59,18 +55,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - VO: “`trace/sensors/tempC` carries temperature telemetry. For the demo it’s simulated to illustrate the operations view.”
 - Lower‑third: “trace/alerts/coldchain = breach summaries (simulated)”
 - VO: “`trace/alerts/coldchain` summarizes sustained temperature breaches—also simulated here to demonstrate alerting and history.”
-- VO (production note): “In production you don’t put a sensor on every pack—you instrument the environment and logistics units (room, truck, shipper, pallet) and map that telemetry to the relevant batches.”
-
-### Production cold‑chain VO detail (insert here, ~20–30s)
 - VO: “In production we keep costs low by measuring at the lane, room, truck, or shipper/pallet level—not item level. A common setup is ESP32 with a DS18B20 probe publishing JSON to MQTT, or BLE tags with a small gateway.”
-- VO: “Sensors publish raw readings, for example `devices/<deviceId>/tempC` with `{ value, ts, deviceId }`. In the app we record an attach/detach mapping between `deviceId` and `batchId` when loading a shipper or pallet.”
-- VO: “A tiny bridge (Node‑RED or server route) looks up that mapping and republishes to our canonical `trace/sensors/tempC` with `{ value, ts, deviceId, batchId }`. The cold‑chain flow then emits `trace/alerts/coldchain` and calls the AI summariser—no UI changes required.”
-
-## AI Summariser (cold‑chain) (6:00–6:50)
-- Shot: Event Flow (Node‑RED) → open the cold‑chain flow; highlight HTTP node to `/api/ai/summarize-coldchain`.
-- Lower‑third: “AI summariser via /api/ai/summarize-coldchain”
-- VO: “When temperature stays above threshold, we call an AI summariser. With `OPENAI_API_KEY` set it generates a concise operator summary; otherwise we fall back to a deterministic summary so the flow still works.”
-- Shot: Show a generated alert with `summary`.
 
 ## Dashboards (6:50–7:30)
 - Shot: supOS → Dashboards → table bound to `trace/events` ordered by `ts` desc; optional alert list for cold‑chain
