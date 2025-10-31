@@ -2,6 +2,12 @@
 
 [![PackTrace Demo](public/images/pack-trace-demo.png)](https://www.youtube.com/watch?v=hJAu5NF_61I)
 
+### Hackathon Alignment
+
+- Focus: DLT for Operations — applies Hedera to improve healthcare supply chains with verifiable custody and cold‑chain oversight.
+- Impact: Reduces counterfeit risk and spoilage through GS1 labeling, public custody proofs (HCS), and real‑time operational visibility (supOS).
+- Accessibility: One‑click NodeOps template and public amd64 image enable fast trials across African cities and online participants.
+
 ### Quick Links
 
 | Resource | Link |
@@ -13,15 +19,12 @@
 | NodeOps Template URL (For easy deployment) | https://cloud.nodeops.network/marketplace/d42cgfkc6prc7390ivcg |
 
 ### Demo Logins (seeded)
+Fastest way to test: sign in on the Live Website (https://pack-trace.vercel.app/) and use these default seeded credentials:
 
 - Manufacturer admin – `manufacturer@packtrace.app` / `TraceDemo!24`
 - Distributor operator – `distributor@packtrace.app` / `TraceDemo!24`
 - Pharmacy technician – `pharmacy@packtrace.app` / `TraceDemo!24`
 - Auditor reviewer – `auditor@packtrace.app` / `TraceDemo!24`
-
-Use `npm run seed:demo` after configuring `.env` to provision these accounts. Override the default password by setting `DEMO_SEED_PASSWORD`.
-
-PackTrace is a pack-level traceability control plane that combines GS1-compliant labeling, Hedera Consensus Service event signing, and Supabase-authenticated dashboards. The day-one implementation ships a production-ready foundation for manufacturing, distribution, dispensing, and auditing teams.
 
 ## Highlights
 
@@ -30,14 +33,6 @@ PackTrace is a pack-level traceability control plane that combines GS1-compliant
 - Supabase Postgres schema with facility-scoped row-level security ([RLS reference](https://supabase.com/docs/guides/auth/row-level-security)).
 - Custody scanner integrates `/api/facilities` directory results for handover selection, removing the need to memorise facility UUIDs.
 - supOS CE Unified Namespace captures custody events, temperature telemetry, and cold-chain alerts to power live operator dashboards.
-
-## Hackathon Scoring Map
-
-- **Innovation**: Combines Hedera custody proofs with supOS Unified Namespace modeling, Node-RED automations, and AI-backed cold-chain summaries so operations and compliance share the same live view.
-- **Technical Feasibility**: Implements an at-least-once outbox publisher (`supos_outbox`, `scripts/supos-bridge-worker.ts`) with MQTT QoS 1, SSE streaming for the UI (`/api/stream/supos`), and deterministic fallbacks when the AI summariser is unavailable.
-- **Business Value**: Reduces counterfeit and recall risk through GS1-compliant labeling, verifiable handovers, and real-time cold-chain monitoring fed into operator dashboards and public `/verify`.
-- **supOS Feature Utilisation**: Uses Namespace topic modeling with History, Node-RED Event Flow (`flows/supos-eventflow-coldchain.json`), internal TimescaleDB/Postgres storage, and Dashboards backed by the default pg data source.
-- **Presentation & Delivery**: Ships a scripted demo runbook, environment presets, and profile switching so the 10-minute video captures every custody hop, on-chain proof, and live supOS alert without retakes.
 
 ## Architecture
 
@@ -61,6 +56,77 @@ PackTrace is a pack-level traceability control plane that combines GS1-compliant
 ### Distributed Ledger
 - Hedera Consensus Service topic IDs recorded on `batches.topic_id`.
 - Custody events store `hcs_tx_id`, optional `hcs_seq_no`, and `hcs_running_hash` for reconciliation against mirror nodes ([topics API](https://docs.hedera.com/hedera/sdks-and-apis/rest-api/topics)).
+
+## Hedera Integration Summary
+
+### Hedera Consensus Service (HCS)
+- Why: Immutable, low-cost logging of critical custody events. Predictable per‑message fees (~$0.0001) ensure operational cost stability for high‑volume, low‑margin logistics.
+- How: Backend submits custody payload hashes via `TopicMessageSubmitTransaction`; batch records store the topic ID and references to sequence numbers and running hashes.
+
+### Mirror Node (REST)
+- Why: Public, verifiable read path for auditors and UIs without custom indexers.
+- How: The app queries Mirror Node REST, decodes base64 payloads, and renders an ordered custody timeline with sequence numbers, consensus timestamps, and HashScan links.
+
+#### Transaction Types
+- `TopicCreateTransaction` (one‑time per deployment) to create the custody topic.
+- `TopicMessageSubmitTransaction` for each custody event.
+
+#### Economic Justification
+- Hedera’s low, predictable fees, high throughput, and ABFT finality make per‑event notarization economically viable and operationally dependable.
+
+## Deployment & Setup (under 10 minutes)
+
+1) Clone and install
+- `git clone https://github.com/syntaxsurge/pack-trace && cd pack-trace`
+- `pnpm install` (or `npm install`)
+
+2) Configure environment
+- Copy `.env.example` to `.env` (or `.env.local`) and fill:
+  - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API)
+  - `SUPABASE_SERVICE_ROLE_KEY` (server‑only; keep secret)
+  - `NEXT_PUBLIC_NETWORK=testnet`
+  - `HEDERA_OPERATOR_ACCOUNT_ID`, `HEDERA_OPERATOR_DER_PRIVATE_KEY` (testnet)
+  - `HEDERA_TOPIC_ID` (create next or reuse)
+
+3) Create HCS topic on Testnet (one‑time)
+- `pnpm tsx -r dotenv/config lib/hedera/examples/topic-create.ts "pack-trace topic"`
+- Paste the returned topic ID into `HEDERA_TOPIC_ID`.
+
+4) Run locally (Testnet)
+- Dev: `pnpm dev` → `http://localhost:3000`
+- Prod: `pnpm build && pnpm start` → `http://localhost:3000`
+
+5) Seed demo data (optional)
+- `pnpm seed:demo` (uses `DEMO_SEED_PASSWORD` if set, default `TraceDemo!24`)
+
+6) supOS (optional)
+- Start supOS CE, then run `pnpm worker:supos` to stream custody events to MQTT with QoS 1 retries.
+
+### Running Environment
+- Frontend: Next.js App Router served at `http://localhost:3000`.
+- Backend: Next.js route handlers under `app/api/*` (no separate server). In Docker, the runtime executes `node server.js` (standalone output).
+
+## Architecture Diagram
+
+```
+[ Browser (UI) ] --scan/verify--> [ Next.js API /api/verify ]
+        |                                   |
+        |  custody events (/api/events)     | TopicMessageSubmitTransaction
+        v                                   v
+   [ Next.js API /api/events ]  ------>  [ Hedera HCS Topic ]
+        ^                                   |
+        | Mirror Node REST (timeline)       |
+        |                                   v
+        +--------<--------- [ Mirror Node ]
+
+   [ Supabase (Postgres/RLS) ] <---- Next.js server components
+   [ supOS (MQTT/Namespace/Dashboards) ] <--- outbox worker (QoS 1)
+```
+
+## Deployed Hedera IDs (Testnet)
+- Operator Account ID: `0.0.7154879`
+- HCS Topic ID: `0.0.7163002`
+- Smart contracts / HTS tokens: not used in this deployment.
 
 ## Data Model
 
@@ -220,61 +286,6 @@ Optional operations topics (helpful for demo UI):
 - `trace/sensors/tempC` (simulated temperature telemetry)
 - `trace/alerts/coldchain` (AI‑summarised alert entries)
 
-## NodeOps Deployment (Template URL + amd64 Image)
-
-Use this when submitting to a marketplace or judge who deploys via a template and public Docker image.
-
-1) Docker Hub setup
-
-- Confirm username: https://hub.docker.com/settings/general
-- Create public repo `pack-trace`: https://hub.docker.com/repositories/new (Namespace = your username)
-- Generate a Personal Access Token: https://hub.docker.com/settings/security
-
-2) Build and push linux/amd64 image
-
-- Log in:
-  ```bash
-  docker login -u syntaxsurge
-  ```
-- Create a builder (once) and push:
-  ```bash
-  docker buildx create --use --name nodeopsbuilder || true
-  # Supply public Supabase vars for Next.js build-time validation
-  # One-liner (avoids multi-line quoting issues):
-  docker buildx build --platform linux/amd64 -t syntaxsurge/pack-trace:1.0.0 \
-    --build-arg NEXT_PUBLIC_SUPABASE_URL="https://isyoifeidgfufyqaevrl.supabase.co" \
-    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzeW9pZmVpZGdmdWZ5cWFldnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2MzQ1MjYsImV4cCI6MjA3NzIxMDUyNn0.NQG011haTaoWU4qMeVAWMFNZ2Rljh-8wrwn57isrWkg" \
-    --build-arg NEXT_PUBLIC_NETWORK="testnet" \
-    --push .
-  ```
-- Verify architecture and visibility:
-  ```bash
-  docker buildx imagetools inspect syntaxsurge/pack-trace:1.0.0 | grep -i 'Architecture: amd64'
-  ```
-- Confirm the repo is public: https://hub.docker.com/repositories
-
-3) Update NodeOps template
-
-- Edit `nodeops_template.yaml:1` and set:
-  ```yaml
-  image: syntaxsurge/pack-trace:1.0.0
-  ```
-- Required envs are already defined; NodeOps prompts for values at deploy.
-
-4) Upload template and get the Template URL
-
-- Guide: https://docs.nodeops.network/Guides/Marketplace/Configure-Compute/upload-template
-- In My Templates → Create Template:
-  - Name, Description, Category, Overview, Use cases, Thumbnail, Tutorial (YouTube), GitHub URL
-  - Paste `nodeops_template.yaml`
-  - Save, run Deploy Preview, then copy the marketplace page link (Template URL)
-
-Runtime env values (where to find them):
-- Supabase URL + anon key: Supabase project → Settings → API
-- Service role key: Supabase project → Settings → API (supply at runtime, not build)
-- Hedera account/key/topic: https://faucet.hedera.com and HashScan https://hashscan.io/testnet
-- supOS MQTT (optional): broker URL and credentials
-
 Model the aggregate and (optionally) the ops topics via Reverse Generation.
 
 - Go to Namespace:
@@ -347,17 +358,6 @@ Reverse Generation JSON samples
 - Click the “Data Connection” card. If prompted, select the **node‑red** template and save/deploy.
 - This binds the topic to the internal pipeline so History persists and dashboards can query it.
 
-### 6) Build a dashboard
-
-- supOS gateway → Dashboards → “+ New Dashboard”.
-- Add a Table bound to `trace/events`; order by `ts` (descending). Save.
-
-### 7) Optional: simulate temperature
-
-- Run the simulator from this repo to populate `trace/sensors/tempC`:
-  - `pnpm sim:temp -- <batchId>`
-- If you imported the provided cold‑chain Event Flow, alerts will appear under `trace/alerts/coldchain` after a sustained breach.
-
 ### Cold‑chain in production
 
 For the demo, `trace/sensors/tempC` and `trace/alerts/coldchain` are simulated so you can exercise the UI quickly. In production you don’t attach a sensor to every pack; you instrument the environment and logistics units, then map telemetry to batches.
@@ -386,7 +386,7 @@ For the demo, `trace/sensors/tempC` and `trace/alerts/coldchain` are simulated s
 
 Note: custody events on `trace/events` are live production writes; tempC and cold‑chain alerts are mocked only for the demo.
 
-## Ports & URLs (defaults in this setup)
+### Ports & URLs (defaults in this setup)
 
 - Pack‑Trace app: `http://localhost:3000`
 - supOS gateway: `http://192.168.1.4:8088/home` (adjust to your LAN IP)
@@ -395,7 +395,7 @@ Note: custody events on `trace/events` are live production writes; tempC and col
 - Grafana: `http://192.168.1.4:3300` (remapped from 3000)
 - Node‑RED (eventflow): `http://192.168.1.4:1889`
 
-## Command Reference (as used in this setup)
+### Command Reference (as used in this setup)
 
 - Clone supOS CE: `git clone https://github.com/FREEZONEX/supOS-CE`
 - Start supOS CE: `bash bin/install.sh`
@@ -405,34 +405,62 @@ Note: custody events on `trace/events` are live production writes; tempC and col
 - Start the app: `pnpm dev`
 - Simulate temperature: `pnpm sim:temp -- <batchId>`
 
-## Notes
 
-- For cold‑chain demo UI, sensors and alerts are simulated; custody events are live.
+## NodeOps Deployment (Template URL + amd64 Image)
 
-## Auth & Routing
+Use this when submitting to a marketplace or judge who deploys via a template and public Docker image.
 
-- `/login` shares the Supabase password flow with `/auth/login` for compatibility with email links.
-- `/auth/*` still hosts Supabase confirm, reset, and update routes required for OTP/password flows.
-- Middleware redirects unauthenticated requests to `/login` while keeping the marketing landing page and Supabase auth flows public.
+1) Docker Hub setup
 
-## Dashboard Overview
+- Confirm username: https://hub.docker.com/settings/general
+- Create public repo `pack-trace`: https://hub.docker.com/repositories/new (Namespace = your username)
+- Generate a Personal Access Token: https://hub.docker.com/settings/security
 
-- Stats cards summarise batch, event, and active receipt counts.
-- Facility profile section surfaces GS1 prefix, type, and onboarding timestamp.
-- Recent batches and custody events lists pull live data subject to RLS filters.
-- Quick links point operators toward `/batches/new` when no inventory exists yet.
+2) Build and push linux/amd64 image
 
-## Custody Scanner
+- Log in:
+  ```bash
+  docker login -u syntaxsurge
+  ```
+- Create a builder (once) and push:
+  ```bash
+  docker buildx create --use --name nodeopsbuilder || true
+  # Supply public Supabase vars for Next.js build-time validation
+  # One-liner (avoids multi-line quoting issues):
+  docker buildx build --platform linux/amd64 -t syntaxsurge/pack-trace:1.0.0 \
+    --build-arg NEXT_PUBLIC_SUPABASE_URL="https://isyoifeidgfufyqaevrl.supabase.co" \
+    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzeW9pZmVpZGdmdWZ5cWFldnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2MzQ1MjYsImV4cCI6MjA3NzIxMDUyNn0.NQG011haTaoWU4qMeVAWMFNZ2Rljh-8wrwn57isrWkg" \
+    --build-arg NEXT_PUBLIC_NETWORK="testnet" \
+    --push .
+  ```
+- Verify architecture and visibility:
+  ```bash
+  docker buildx imagetools inspect syntaxsurge/pack-trace:1.0.0 | grep -i 'Architecture: amd64'
+  ```
+- Confirm the repo is public: https://hub.docker.com/repositories
 
-- `/scan` renders the `ScannerClient`, combining the progressive `useScanner` hook (BarcodeDetector primary, ZXing fallback) with Supabase lookups.
-- The facility directory loads from `/api/facilities`, giving operators a searchable destination list with manual overrides for auditors.
-- Custody actions invoke `/api/events` to persist `RECEIVED`, `HANDOVER`, and `DISPENSED` hops, returning Hedera metadata and SHA-256 payload hashes for audit surfaces.
+3) Update NodeOps template
 
-## Batch Labeling
+- Edit `nodeops_template.yaml:1` and set:
+  ```yaml
+  image: syntaxsurge/pack-trace:1.0.0
+  ```
+- Required envs are already defined; NodeOps prompts for values at deploy.
 
-- `/batches/new` collects product name, GTIN, lot, expiry, and quantity, validating inputs with `lib/labels/gs1`.
-- Live previews render GS1 DataMatrix barcodes via `bwip-js/browser` with download and print actions for production labels; `POST /api/batches` responds with GS1 metadata and `/api/batches/:id/label` delivers a ready-to-print PDF export.
-- Successful submissions persist GTIN-14, lot, expiry, quantity, human-readable label text, and product name to Supabase while scoping ownership to the operator’s facility.
+4) Upload template and get the Template URL
+
+- Guide: https://docs.nodeops.network/Guides/Marketplace/Configure-Compute/upload-template
+- In My Templates → Create Template:
+  - Name, Description, Category, Overview, Use cases, Thumbnail, Tutorial (YouTube), GitHub URL
+  - Paste `nodeops_template.yaml`
+  - Save, run Deploy Preview, then copy the marketplace page link (Template URL)
+
+Runtime env values (where to find them):
+- Supabase URL + anon key: Supabase project → Settings → API
+- Service role key: Supabase project → Settings → API (supply at runtime, not build)
+- Hedera account/key/topic: https://faucet.hedera.com and HashScan https://hashscan.io/testnet
+- supOS MQTT (optional): broker URL and credentials
+
 
 ## Scripts
 
@@ -444,35 +472,3 @@ Note: custody events on `trace/events` are live production writes; tempC and col
 - `npm run seed:demo` – provision demo facilities, accounts, batches, events, and receipts in Supabase (requires service role key).
 - `npm run worker:supos` – drain the Supabase `supos_outbox` table and publish each record to the supOS MQTT broker with QoS 1 retries.
 - `npm run sim:temp -- <batchId>` – stream synthetic temperature telemetry to `trace/sensors/tempC` for dashboards and alert testing (batch ID is only used for logging).
-
-## Demo data & credentials
-
-Run the seeding script once your Supabase project is configured:
-
-```bash
-npm run seed:demo
-```
-
-The script reads `.env.local`, creates facilities for the manufacturer, distributor, pharmacy, and auditor personas, and loads two batches with full custody histories. Default seeded accounts and passwords are listed in the Demo Logins section above. Override the default password by setting `DEMO_SEED_PASSWORD` before running the script.
-
-## Demo Runbook
-
-Record the 10-minute walkthrough using the scripted checklist in `docs/demo-runbook.md`. It covers environment preparation, camera/printing tips, user profile sequencing, supOS cut-ins, and narration beats so the final edit captures every custody hop, Hedera proof, and cold-chain alert in a single take.
-
-### YouTube Script – Distributor Receive & Handover VO
-
-- “Log out as Manufacturer, then log in as Distributor.”
-- Shot: Distributor → `/scan` → Receive
-- “As Distributor, we receive the batch. The batch page shows the Hedera sequence number with a ‘View on HashScan’ link, and the same event streams live into supOS.”
-- Shot: Still as Distributor → `/scan` → Handover → choose Pharmacy
-- “Next, we hand over to the Pharmacy. Again, the event is written to Hedera (sequence + HashScan link) and streamed to supOS.”
-- “Log out as Distributor, then log in as Pharmacy.”
-
-## Reference Links
-
-- Hedera Consensus Service: [submit a message](https://docs.hedera.com/hedera/sdks-and-apis/sdks/consensus-service/submit-a-message)
-- Hedera Mirror Node: [topics REST API](https://docs.hedera.com/hedera/sdks-and-apis/rest-api/topics)
-- GS1 DataMatrix guideline: [PDF](https://www.gs1.org/docs/barcodes/GS1_DataMatrix_Guideline.pdf)
-- Supabase Next.js quickstart: [guide](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
-- supOS CE: [GitHub](https://github.com/FREEZONEX/supOS-CE)
-- supOS community docs: [Namespace modeling](https://suposcommunity.vercel.app/category/namespace), [Dashboards](https://suposcommunity.vercel.app/Basic%20Guides/UNS%20Data%20Integration/Dashboards)
