@@ -179,6 +179,22 @@ export default async function BatchTimelinePage({
 
   const userRole = (profileResponse.data?.role as string | null) ?? null;
 
+  const eventsResponse = await supabase
+    .from("events")
+    .select(
+      "id, type, created_at, hcs_seq_no, hcs_tx_id, payload_hash, from_facility_id, to_facility_id",
+    )
+    .eq("batch_id", batchId)
+    .order("created_at", { ascending: false });
+
+  if (eventsResponse.error && eventsResponse.error.code !== "PGRST116") {
+    throw new Error(eventsResponse.error.message);
+  }
+
+  const events = ((eventsResponse.data as EventRecord[]) ?? []).sort((a, b) =>
+    a.created_at < b.created_at ? 1 : -1,
+  );
+
   const batchResponse = await supabase
     .from("batches")
     .select(
@@ -199,6 +215,35 @@ export default async function BatchTimelinePage({
   const batch = (batchResponse.data as BatchRecord | null) ?? null;
 
   if (!batch) {
+    if (events.length > 0) {
+      return (
+        <div className="space-y-8">
+          <PageHeader
+            title="Batch Timeline"
+            description="Review on-ledger custody events for this batch, cross-referenced with database records."
+            icon={Activity}
+          />
+
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              This batch is no longer assigned to your facility, so viewing its timeline requires the current custodian or an auditor to share access.
+            </AlertDescription>
+          </Alert>
+
+          <div>
+            <Link
+              href="/batches"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+            >
+              <ChevronRight className="h-3 w-3" />
+              Back to batches
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     notFound();
   }
 
@@ -215,22 +260,6 @@ export default async function BatchTimelinePage({
     console.error("label identity build failed", batch.id, error);
     labelPayload = null;
   }
-
-  const eventsResponse = await supabase
-    .from("events")
-    .select(
-      "id, type, created_at, hcs_seq_no, hcs_tx_id, payload_hash, from_facility_id, to_facility_id",
-    )
-    .eq("batch_id", batch.id)
-    .order("created_at", { ascending: false });
-
-  if (eventsResponse.error && eventsResponse.error.code !== "PGRST116") {
-    throw new Error(eventsResponse.error.message);
-  }
-
-  const events = ((eventsResponse.data as EventRecord[]) ?? []).sort((a, b) =>
-    a.created_at < b.created_at ? 1 : -1,
-  );
 
   const cursor = decodeCursorParam(resolvedSearchParams.cursor);
 
