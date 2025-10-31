@@ -1,14 +1,12 @@
-FROM node:20-bookworm-slim AS builder
+FROM node:current-alpine AS builder
 
-# Redeclare build args inside the stage so they are in scope
+# Redeclare build args inside the stage so they are in scope (public env only)
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-ARG SUPABASE_SERVICE_ROLE_KEY
 ARG NEXT_PUBLIC_NETWORK=testnet
 
 ENV NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL}"
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
-ENV SUPABASE_SERVICE_ROLE_KEY="${SUPABASE_SERVICE_ROLE_KEY}"
 ENV NEXT_PUBLIC_NETWORK="${NEXT_PUBLIC_NETWORK}"
 
 ENV NODE_ENV=production
@@ -32,7 +30,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM node:20-bookworm-slim AS runner
+FROM node:current-alpine AS runner
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

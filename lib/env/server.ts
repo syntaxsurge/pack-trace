@@ -5,7 +5,8 @@ import { clientEnv } from "./client";
 const serverSchema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // Allow building without the service role key; require it at runtime where needed
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   HEDERA_OPERATOR_ACCOUNT_ID: z.string().optional(),
   HEDERA_OPERATOR_DER_PRIVATE_KEY: z.string().optional(),
   HEDERA_TOPIC_ID: z.string().optional(),
@@ -25,7 +26,7 @@ const parsed = serverSchema.parse(process.env);
 export const serverEnv = {
   supabaseUrl: parsed.SUPABASE_URL ?? clientEnv.supabaseUrl,
   supabaseAnonKey: parsed.SUPABASE_ANON_KEY ?? clientEnv.supabaseAnonKey,
-  supabaseServiceRoleKey: parsed.SUPABASE_SERVICE_ROLE_KEY,
+  supabaseServiceRoleKey: parsed.SUPABASE_SERVICE_ROLE_KEY ?? null,
   hederaOperatorAccountId: parsed.HEDERA_OPERATOR_ACCOUNT_ID ?? null,
   hederaOperatorDerPrivateKey: parsed.HEDERA_OPERATOR_DER_PRIVATE_KEY ?? null,
   hederaTopicId: parsed.HEDERA_TOPIC_ID ?? null,
