@@ -1,4 +1,4 @@
-FROM node:current-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 
 # Redeclare build args inside the stage so they are in scope (public env only)
 ARG NEXT_PUBLIC_SUPABASE_URL
@@ -30,7 +30,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM node:current-alpine AS runner
+FROM node:20-bookworm-slim AS runner
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
