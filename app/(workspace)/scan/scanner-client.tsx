@@ -80,6 +80,11 @@ interface VerifyCacheEntry {
   state: VerifyState;
 }
 
+interface VerifyErrorCooldownEntry {
+  expiresAt: number;
+  message: string;
+}
+
 type ActionStatus =
   | { state: "idle" }
   | { state: "submitting"; action: CustodyActionType }
@@ -99,6 +104,7 @@ type ActionStatus =
   | { state: "error"; action: CustodyActionType; message: string };
 
 const VERIFY_CACHE_TTL_MS = 45_000;
+const VERIFY_ERROR_COOLDOWN_MS = 12_000;
 const CLIENT_NETWORK = process.env.NEXT_PUBLIC_NETWORK ?? "testnet";
 const CLIENT_TOPIC_ID = process.env.NEXT_PUBLIC_HEDERA_TOPIC_ID ?? null;
 
@@ -187,6 +193,10 @@ export function ScannerClient({
   const latestLookupKeyRef = useRef<string | null>(null);
   const lastScannedCodeRef = useRef<string | null>(null);
   const verifyAbortRef = useRef<AbortController | null>(null);
+  const verifyActiveKeyRef = useRef<string | null>(null);
+  const verifyErrorCooldownRef = useRef<
+    Map<string, VerifyErrorCooldownEntry>
+  >(new Map());
   const prefetchedBatchIdsRef = useRef<Set<string>>(new Set());
 
   const activeVerification =
@@ -337,6 +347,23 @@ export function ScannerClient({
       latestLookupKeyRef.current = lookupKey;
       lastScannedCodeRef.current = rawCode;
 
+      const now = Date.now();
+      if (!options?.force) {
+        const cooldown = verifyErrorCooldownRef.current.get(lookupKey);
+        if (cooldown) {
+          if (cooldown.expiresAt > now) {
+            setMiniTimelineOpen(false);
+            setVerificationState({
+              status: "error",
+              key: lookupKey,
+              message: cooldown.message,
+            });
+            return;
+          }
+          verifyErrorCooldownRef.current.delete(lookupKey);
+        }
+      }
+
       if (!options?.force) {
         setMiniTimelineOpen(false);
         const cached = verifyCacheRef.current.get(lookupKey);
@@ -346,9 +373,14 @@ export function ScannerClient({
         }
       }
 
+      if (!options?.force && verifyActiveKeyRef.current === lookupKey) {
+        return;
+      }
+
       verifyAbortRef.current?.abort();
       const controller = new AbortController();
       verifyAbortRef.current = controller;
+      verifyActiveKeyRef.current = lookupKey;
       setMiniTimelineOpen(false);
       setVerificationState({ status: "loading", key: lookupKey });
 
@@ -379,6 +411,7 @@ export function ScannerClient({
           state: payload.state,
           expiresAt: Date.now() + VERIFY_CACHE_TTL_MS,
         });
+        verifyErrorCooldownRef.current.delete(lookupKey);
 
         setVerificationState({
           status: "loaded",
@@ -398,9 +431,20 @@ export function ScannerClient({
               ? loadError.message
               : "Verification failed. Try scanning again.",
         });
+
+        verifyErrorCooldownRef.current.set(lookupKey, {
+          message:
+            loadError instanceof Error
+              ? loadError.message
+              : "Verification failed. Try scanning again.",
+          expiresAt: Date.now() + VERIFY_ERROR_COOLDOWN_MS,
+        });
       } finally {
         if (verifyAbortRef.current === controller) {
           verifyAbortRef.current = null;
+        }
+        if (verifyActiveKeyRef.current === lookupKey) {
+          verifyActiveKeyRef.current = null;
         }
       }
     },
@@ -439,10 +483,12 @@ export function ScannerClient({
   );
 
   const handleDecodeError = useCallback((message: string | null) => {
-    setDecodeError(message);
+    setDecodeError((previous) => (previous === message ? previous : message));
     if (message) {
-      setScanPayload(null);
-      setVerificationState({ status: "idle" });
+      setScanPayload(() => null);
+      setVerificationState((previous) =>
+        previous.status === "idle" ? previous : { status: "idle" },
+      );
     }
   }, []);
 
