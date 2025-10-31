@@ -68,6 +68,8 @@ const MODE_META: Record<ScanMode, ModeConfig> = {
   },
 };
 
+const CAMERA_EMIT_DEDUP_MS = 1_500;
+
 interface Gs1ScannerProps {
   onDecoded: (rawValue: string, context: { mode: ScanMode; origin: string }) => void;
   onDecodeError?: (message: string | null) => void;
@@ -91,6 +93,9 @@ export function Gs1Scanner({
   const [manualInput, setManualInput] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const lastCameraValueRef = useRef<{ signature: string; timestamp: number } | null>(
+    null,
+  );
 
   const {
     videoRef,
@@ -111,6 +116,9 @@ export function Gs1Scanner({
       onModeChange?.(nextMode);
       onDecodeError?.(null);
       setDragActive(false);
+      if (nextMode !== "camera") {
+        lastCameraValueRef.current = null;
+      }
       if (nextMode !== "paste") {
         setLastPastedText(null);
       }
@@ -221,9 +229,19 @@ export function Gs1Scanner({
   );
 
   useEffect(() => {
-    if (!result?.rawValue) {
+    if (!result?.rawValue || mode !== "camera") {
       return;
     }
+
+    const signature = `${source ?? "unknown"}:${result.rawValue}`;
+    const now = Date.now();
+    const last = lastCameraValueRef.current;
+
+    if (last && last.signature === signature && now - last.timestamp < CAMERA_EMIT_DEDUP_MS) {
+      return;
+    }
+
+    lastCameraValueRef.current = { signature, timestamp: now };
 
     const originLabel =
       source === "barcode-detector"
@@ -231,7 +249,7 @@ export function Gs1Scanner({
         : "camera · ZXing";
 
     emitDecoded(result.rawValue, originLabel, "camera");
-  }, [emitDecoded, result?.rawValue, source]);
+  }, [emitDecoded, mode, result?.rawValue, source]);
 
   useEffect(() => {
     if (mode !== "paste") {
@@ -327,7 +345,10 @@ export function Gs1Scanner({
             <Button
               size="icon"
               variant="outline"
-              onClick={restart}
+              onClick={() => {
+                lastCameraValueRef.current = null;
+                restart();
+              }}
               aria-label="Restart scanner"
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
