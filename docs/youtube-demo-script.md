@@ -80,7 +80,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 
 ## 12. Outro (7:30–7:50)
 - Shot: supOS dashboard and Pack‑Trace `/batches/[id]` side‑by‑side
-- VO: “Deploy your own instance from the NodeOps template URL in the description—it's a one‑click launch.”
+- VO: “Deploy your own instance from the NodeOps template URL in the description (one‑click), or visit the live demo at https://pack-trace.vercel.app/.”
 - VO: “Links in the description: template URL, public Docker image, GitHub repo, and demo runbook. Thanks for watching.”
 
 ---
