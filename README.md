@@ -10,6 +10,7 @@
 | YouTube Video Demo | https://www.youtube.com/watch?v=hJAu5NF_61I |
 | Live Website | https://pack-trace.vercel.app/ |
 | Hashgraph Developer Course Certificate | https://drive.google.com/file/d/10fQnK3CINl5sH9a2s4m0pUzO2I9Lo_QH/view?usp=sharing |
+| NodeOps Template URL (For easy deployment) | https://cloud.nodeops.network/marketplace/d42cgfkc6prc7390ivcg |
 
 ### Demo Logins (seeded)
 
