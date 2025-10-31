@@ -3,15 +3,16 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { parseGs1Datamatrix, type ParsedGs1Datamatrix } from "@/lib/labels/gs1";
 import { PublicVerifyState } from "@/lib/verify/public";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { Gs1Scanner, type ScanMode } from "@/components/verify/gs1-scanner";
 import {
   AlertCircle,
   CheckCircle2,
@@ -78,40 +79,58 @@ function resolveStatusMeta(state: PublicVerifyState | null) {
   return STATUS_META[state.status] ?? STATUS_META.unknown;
 }
 
+function maskSerialValue(serial: string | null): string | null {
+  if (!serial) return null;
+  const normalized = serial.trim();
+  if (!normalized) return null;
+  if (normalized.length <= 4) {
+    return "*".repeat(normalized.length);
+  }
+  const tail = normalized.slice(-4);
+  return `${"*".repeat(normalized.length - 4)}${tail}`;
+}
+
 export function PublicVerifyClient() {
-  const [code, setCode] = useState("");
+  const [scanPayload, setScanPayload] = useState<ParsedGs1Datamatrix | null>(null);
+  const [payloadError, setPayloadError] = useState<string | null>(null);
+  const [decodeError, setDecodeError] = useState<string | null>(null);
   const [status, setStatus] = useState<FetchStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PublicVerifyState | null>(null);
   const [challenge, setChallenge] = useState<ChallengeState | null>(null);
   const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [lastCode, setLastCode] = useState<string | null>(null);
+  const [lastMode, setLastMode] = useState<ScanMode>("camera");
+  const [lastSource, setLastSource] = useState<string | null>(null);
 
   const statusMeta = useMemo(() => resolveStatusMeta(result), [result]);
 
-  const handleSubmit = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
+  const badgeMeta = useMemo(() => {
+    if (status === "loading") {
+      return {
+        label: "Verifying",
+        icon: Loader2,
+        tone: "text-muted-foreground",
+        badge: "bg-primary text-primary-foreground",
+      };
+    }
+    if (status === "error" && !result) {
+      return STATUS_META.error;
+    }
+    return statusMeta;
+  }, [result, status, statusMeta]);
 
-      const trimmed = code.trim();
-      if (!trimmed) {
-        setError("Enter or paste a GS1 DataMatrix payload to verify.");
-        return;
-      }
-
-      setStatus("loading");
-      setError(null);
-
+  const performVerify = useCallback(
+    async (rawCode: string, options?: { captchaId?: string; captchaAnswer?: string }) => {
       const params = new URLSearchParams();
-      params.set("code", trimmed);
-      if (challenge && captchaAnswer.trim()) {
-        params.set("captchaId", challenge.id);
-        params.set("captchaAnswer", captchaAnswer.trim());
+      params.set("code", rawCode);
+      if (options?.captchaId) {
+        params.set("captchaId", options.captchaId);
+        params.set("captchaAnswer", options.captchaAnswer ?? "");
       }
 
       try {
-        const response = await fetch(`/api/verify/public?${params.toString()}`, {
-          method: "GET",
-        });
+        const response = await fetch(`/api/verify/public?${params.toString()}`);
         const payload = (await response.json().catch(() => null)) as
           | {
               error?: string;
@@ -123,12 +142,10 @@ export function PublicVerifyClient() {
         if (!response.ok || !payload?.state) {
           if (payload?.challenge) {
             setChallenge(payload.challenge);
-            setCaptchaAnswer("");
             setStatus("error");
             setResult(null);
             setError(
-              payload.error ??
-                "Please solve the CAPTCHA challenge to continue verification.",
+              payload.error ?? "Please solve the CAPTCHA challenge to continue verification.",
             );
             return;
           }
@@ -142,43 +159,160 @@ export function PublicVerifyClient() {
         setCaptchaAnswer("");
         setResult(payload.state);
         setStatus("success");
-      } catch (fetchError) {
+        setError(null);
+      } catch (verifyError) {
         setStatus("error");
         setResult(null);
         setError(
-          fetchError instanceof Error
-            ? fetchError.message
+          verifyError instanceof Error
+            ? verifyError.message
             : "Verification failed. Try again shortly.",
         );
       }
     },
-    [captchaAnswer, challenge, code],
+    [],
+  );
+
+  const handleDecoded = useCallback(
+    (rawValue: string, context: { mode: ScanMode; origin: string }) => {
+      setLastMode(context.mode);
+      setLastSource(context.origin);
+      setChallenge(null);
+      setCaptchaAnswer("");
+      try {
+        const parsed = parseGs1Datamatrix(rawValue);
+        setScanPayload(parsed);
+        setPayloadError(null);
+        setDecodeError(null);
+        setStatus("loading");
+        setError(null);
+        setResult(null);
+        setLastCode(rawValue);
+        void performVerify(rawValue);
+      } catch (parseError) {
+        setScanPayload(null);
+        setResult(null);
+        setLastCode(null);
+        const message =
+          parseError instanceof Error
+            ? parseError.message
+            : "Failed to decode GS1 payload.";
+        setStatus("error");
+        setError(message);
+        setPayloadError(message);
+      }
+    },
+    [performVerify],
+  );
+
+  const handleDecodeError = useCallback((message: string | null) => {
+    setDecodeError(message);
+    if (message) {
+      setStatus("error");
+      setResult(null);
+      setScanPayload(null);
+      setLastCode(null);
+      setError(message);
+    }
+  }, []);
+
+  const handleClearScan = useCallback(() => {
+    setScanPayload(null);
+    setPayloadError(null);
+    setDecodeError(null);
+    setResult(null);
+    setStatus("idle");
+    setError(null);
+    setChallenge(null);
+    setCaptchaAnswer("");
+    setLastCode(null);
+    setLastSource(null);
+  }, []);
+
+  const handleChallengeSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!challenge || !lastCode) {
+        return;
+      }
+      const trimmed = captchaAnswer.trim();
+      if (!trimmed) {
+        setError("Enter the answer to continue verification.");
+        return;
+      }
+      setStatus("loading");
+      setError(null);
+      await performVerify(lastCode, {
+        captchaId: challenge.id,
+        captchaAnswer: trimmed,
+      });
+    },
+    [captchaAnswer, challenge, lastCode, performVerify],
   );
 
   const timeline = result?.timeline ?? [];
 
+  const identifiers = result?.parsed
+    ? result.parsed
+    : scanPayload
+    ? {
+        gtin: scanPayload.gtin14,
+        lot: scanPayload.lot,
+        expiry: scanPayload.expiryIsoDate,
+        maskedSerial: maskSerialValue(scanPayload.serial),
+      }
+    : null;
+
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,380px),minmax(0,1fr)]">
       <div className="space-y-6">
+        <Gs1Scanner
+          onDecoded={handleDecoded}
+          onDecodeError={handleDecodeError}
+          onModeChange={setLastMode}
+          onClear={handleClearScan}
+        />
+        {decodeError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{decodeError}</AlertDescription>
+          </Alert>
+        ) : null}
+        {payloadError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{payloadError}</AlertDescription>
+          </Alert>
+        ) : null}
+
         <Card>
-          <CardHeader>
-            <CardTitle>Verify a pack</CardTitle>
+          <CardHeader className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Badge className={cn("text-xs font-semibold", badgeMeta.badge)}>
+                {badgeMeta.label}
+              </Badge>
+            </div>
+            <CardTitle>Verification status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <Label htmlFor="verify-code">GS1 payload</Label>
-                <Textarea
-                  id="verify-code"
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  placeholder="Paste the GS1 string encoded in the DataMatrix"
-                  rows={4}
-                  required
-                />
+            {status === "idle" ? (
+              <p className="text-sm text-muted-foreground">
+                Scan a GS1 DataMatrix to validate the pack against the custody timeline.
+              </p>
+            ) : null}
+            {status === "loading" ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                Verifying code…
               </div>
-              {challenge ? (
-                <div className="space-y-2">
+            ) : null}
+            {status !== "loading" && result?.message ? (
+              <p className={cn("text-sm", badgeMeta.tone)}>{result.message}</p>
+            ) : null}
+            {status !== "loading" && error && !result?.message ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : null}
+            {challenge ? (
+              <form onSubmit={handleChallengeSubmit} className="space-y-3">
+                <div className="space-y-1">
                   <Label htmlFor="verify-captcha">{challenge.prompt}</Label>
                   <Input
                     id="verify-captcha"
@@ -188,44 +322,23 @@ export function PublicVerifyClient() {
                     inputMode="numeric"
                   />
                 </div>
-              ) : null}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={status === "loading"}
-              >
-                {status === "loading" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying…
-                  </>
-                ) : (
-                  "Verify pack"
-                )}
-              </Button>
-            </form>
-            {error ? (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={status === "loading"}>
+                    Submit answer
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setChallenge(null);
+                      setCaptchaAnswer("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
             ) : null}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge className={cn("text-xs font-semibold", statusMeta.badge)}>
-                {statusMeta.label}
-              </Badge>
-            </div>
-            <CardTitle>Verification status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={cn("text-sm", statusMeta.tone)}>
-              {result?.message ??
-                "Paste a GS1 DataMatrix payload to validate the pack against the custody timeline."}
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -238,25 +351,29 @@ export function PublicVerifyClient() {
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-xs uppercase text-muted-foreground">GTIN</p>
-              <p className="font-mono text-sm">
-                {result?.parsed?.gtin ?? "—"}
-              </p>
+              <p className="font-mono text-sm">{identifiers?.gtin ?? "—"}</p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Lot</p>
-              <p className="font-mono text-sm">{result?.parsed?.lot ?? "—"}</p>
+              <p className="font-mono text-sm">{identifiers?.lot ?? "—"}</p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Expiry</p>
-              <p className="font-mono text-sm">
-                {result?.parsed?.expiry ?? "—"}
-              </p>
+              <p className="font-mono text-sm">{identifiers?.expiry ?? "—"}</p>
             </div>
             <div>
               <p className="text-xs uppercase text-muted-foreground">Serial</p>
-              <p className="font-mono text-sm">
-                {result?.parsed?.maskedSerial ?? "—"}
+              <p className="font-mono text-sm">{identifiers?.maskedSerial ?? "—"}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-xs uppercase text-muted-foreground">Raw</p>
+              <p className="font-mono text-xs">
+                {scanPayload?.raw ?? lastCode ?? "—"}
               </p>
+            </div>
+            <div className="sm:col-span-2 text-xs text-muted-foreground">
+              <p>Scan mode: {lastMode}</p>
+              {lastSource ? <p>Source: {lastSource}</p> : null}
             </div>
           </CardContent>
         </Card>
@@ -268,21 +385,15 @@ export function PublicVerifyClient() {
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <p className="text-xs uppercase text-muted-foreground">
-                  Hedera topic
-                </p>
+                <p className="text-xs uppercase text-muted-foreground">Hedera topic</p>
                 <p className="text-sm font-semibold">
                   {shortTopicId(result?.topicId ?? null)}
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase text-muted-foreground">
-                  Latest sequence
-                </p>
+                <p className="text-xs uppercase text-muted-foreground">Latest sequence</p>
                 <p className="text-sm font-semibold">
-                  {result?.latestSequence !== null
-                    ? `#${result?.latestSequence}`
-                    : "—"}
+                  {result?.latestSequence !== null ? `#${result?.latestSequence}` : "—"}
                 </p>
               </div>
             </div>
@@ -318,8 +429,7 @@ export function PublicVerifyClient() {
           <CardContent className="space-y-4">
             {timeline.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Timeline entries will appear once Hedera messages matching the
-                GTIN, lot, and expiry are detected.
+                Timeline entries will appear once Hedera messages matching the GTIN, lot, and expiry are detected.
               </p>
             ) : (
               <ol className="space-y-3 text-sm">
@@ -330,10 +440,7 @@ export function PublicVerifyClient() {
                   >
                     <span className="font-semibold">
                       {entry.eventType}
-                      <span className="text-muted-foreground">
-                        {" "}
-                        • {entry.actorLabel}
-                      </span>
+                      <span className="text-muted-foreground"> • {entry.actorLabel}</span>
                     </span>
                     <span className="font-mono text-xs text-muted-foreground">
                       {entry.formattedTimestamp}
@@ -361,9 +468,7 @@ export function PublicVerifyClient() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
-              Operational timelines with facility names, custody actions, and
-              receipt workflows remain available to authenticated teams inside
-              the dashboard.
+              Operational timelines with facility names, custody actions, and receipt workflows remain available to authenticated teams inside the dashboard.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">

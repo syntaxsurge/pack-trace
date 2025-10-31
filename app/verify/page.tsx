@@ -1,5 +1,6 @@
 import { ShieldCheck } from "lucide-react";
 
+import { SiteHeader } from "@/components/marketing/site-header";
 import { PageHeader } from "@/components/page-header";
 import { PublicVerifyClient } from "./public-verify-client";
 
@@ -16,6 +17,7 @@ export const metadata = {
 export default function PublicVerifyPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+      <SiteHeader basePath="/" />
       <section className="mx-auto w-full max-w-6xl px-6 py-12">
         <PageHeader
           title="Public verification"

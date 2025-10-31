@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { AuthButton } from "@/components/auth-button";
 import { BrandLogo } from "@/components/brand-logo";
+import { SiteHeader } from "@/components/marketing/site-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,34 +81,7 @@ const flowIcons = [
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-base font-bold tracking-tight sm:text-lg"
-            aria-label="pack-trace landing page"
-          >
-            <BrandLogo size={36} className="h-9 w-9" priority />
-            <span className="hidden sm:inline">pack-trace</span>
-          </Link>
-          <nav className="hidden gap-8 text-sm font-medium text-muted-foreground md:flex">
-            <a className="transition-colors hover:text-primary" href="#features">
-              Features
-            </a>
-            <a className="transition-colors hover:text-primary" href="#architecture">
-              Architecture
-            </a>
-            <a className="transition-colors hover:text-primary" href="#flows">
-              Flows
-            </a>
-            <Link className="transition-colors hover:text-primary" href="/verify">
-              Verify
-            </Link>
-          </nav>
-          <AuthButton />
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b">
