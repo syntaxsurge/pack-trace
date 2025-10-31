@@ -19,43 +19,13 @@
 | NodeOps Template URL (For easy deployment) | https://cloud.nodeops.network/marketplace/d42cgfkc6prc7390ivcg |
 
 ### Demo Logins (seeded)
-Fastest way to test: sign in on the Live Website (https://pack-trace.vercel.app/) and use these default seeded credentials:
+
+Fastest way to test: Use these default seeded credentials to sign in on the Live Website (https://pack-trace.vercel.app/):
 
 - Manufacturer admin – `manufacturer@packtrace.app` / `TraceDemo!24`
 - Distributor operator – `distributor@packtrace.app` / `TraceDemo!24`
 - Pharmacy technician – `pharmacy@packtrace.app` / `TraceDemo!24`
 - Auditor reviewer – `auditor@packtrace.app` / `TraceDemo!24`
-
-## Highlights
-
-- Hedera Consensus Service message flows with running hash persistence ([docs](https://docs.hedera.com/hedera/sdks-and-apis/sdks/consensus-service/submit-a-message)).
-- GS1 DataMatrix encoding for `(01) GTIN`, `(10) LOT`, `(17) EXP` using bwip-js ([guideline](https://www.gs1.org/docs/barcodes/GS1_DataMatrix_Guideline.pdf)).
-- Supabase Postgres schema with facility-scoped row-level security ([RLS reference](https://supabase.com/docs/guides/auth/row-level-security)).
-- Custody scanner integrates `/api/facilities` directory results for handover selection, removing the need to memorise facility UUIDs.
-- supOS CE Unified Namespace captures custody events, temperature telemetry, and cold-chain alerts to power live operator dashboards.
-
-## Architecture
-
-### Frontend
-- Next.js App Router ([docs](https://nextjs.org/docs/app)) with Tailwind and shadcn/ui primitives.
-- Client-side Supabase browser client for auth interactions.
-- Dashboard server components query Supabase directly for stats, recent batches, and custody events.
-
-### Backend
-- Route handlers under `app/api/*` apply Supabase service role keys when required, including custody event ingestion (`/api/events`) and facility directory queries (`/api/facilities`).
-- REST API surface delivers batch creation (`POST /api/batches`), batch snapshots (`GET /api/batches/:id`), DataMatrix label exports (`GET /api/batches/:id/label`), custody timelines (`GET /api/timeline`), verification (`GET /api/verify`), dispensing receipts (`POST /api/dispense`), and traceability reports (`GET /api/report`).
-- Supabase auth cookie middleware guards all private routes except `/`, `/login`, and `/auth/*`.
-- Hedera helpers in `lib/hedera` wrap the JavaScript SDK for client creation, topic management, message publishing, and Mirror Node reads.
-
-### Operations Bus
-- `lib/supos/*` establishes an MQTT publisher that mirrors custody events into the supOS CE broker (default `mqtt://localhost:1883`) with QoS 1 delivery semantics.
-- The Supabase trigger `enqueue_supos_outbox` persists every custody event into `supos_outbox`, allowing `npm run worker:supos` to replay messages until the broker acknowledges publication.
-- Topics follow a Unified Namespace shape: `trace/events` carries custody transitions, while `trace/sensors/tempC` and `trace/alerts/coldchain` provide optional cold-chain telemetry and summaries for dashboards.
-- supOS converts these topics into modeled entities with History enabled so Dashboards can read from the internal TimescaleDB/Postgres store without additional ETL, while `/api/stream/supos` provides live SSE updates for the workspace UI.
-
-### Distributed Ledger
-- Hedera Consensus Service topic IDs recorded on `batches.topic_id`.
-- Custody events store `hcs_tx_id`, optional `hcs_seq_no`, and `hcs_running_hash` for reconciliation against mirror nodes ([topics API](https://docs.hedera.com/hedera/sdks-and-apis/rest-api/topics)).
 
 ## Hedera Integration Summary
 
@@ -74,6 +44,13 @@ Fastest way to test: sign in on the Live Website (https://pack-trace.vercel.app/
 #### Economic Justification
 - Hedera’s low, predictable fees, high throughput, and ABFT finality make per‑event notarization economically viable and operationally dependable.
 
+
+## Deployed Hedera IDs (Testnet)
+- Operator Account ID: `0.0.7154879`
+- HCS Topic ID: `0.0.7163002`
+- Smart contracts / HTS tokens: not used in this deployment.
+
+
 ## Deployment & Setup (under 10 minutes)
 
 1) Clone and install
@@ -81,7 +58,7 @@ Fastest way to test: sign in on the Live Website (https://pack-trace.vercel.app/
 - `pnpm install` (or `npm install`)
 
 2) Configure environment
-- Copy `.env.example` to `.env` (or `.env.local`) and fill:
+- Copy `.env.example` to `.env` and fill:
   - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API)
   - `SUPABASE_SERVICE_ROLE_KEY` (server‑only; keep secret)
   - `NEXT_PUBLIC_NETWORK=testnet`
@@ -106,8 +83,10 @@ Fastest way to test: sign in on the Live Website (https://pack-trace.vercel.app/
 - Frontend: Next.js App Router served at `http://localhost:3000`.
 - Backend: Next.js route handlers under `app/api/*` (no separate server). In Docker, the runtime executes `node server.js` (standalone output).
 
-## Architecture Diagram
 
+## Architecture
+
+### Architecture Diagram
 ```
 [ Browser (UI) ] --scan/verify--> [ Next.js API /api/verify ]
         |                                   |
@@ -123,85 +102,29 @@ Fastest way to test: sign in on the Live Website (https://pack-trace.vercel.app/
    [ supOS (MQTT/Namespace/Dashboards) ] <--- outbox worker (QoS 1)
 ```
 
-## Deployed Hedera IDs (Testnet)
-- Operator Account ID: `0.0.7154879`
-- HCS Topic ID: `0.0.7163002`
-- Smart contracts / HTS tokens: not used in this deployment.
+### Frontend
+- Next.js App Router with Tailwind and shadcn/ui primitives.
+- Client-side Supabase browser client for auth interactions.
+- Dashboard server components query Supabase directly for stats, recent batches, and custody events.
 
-## Data Model
+### Backend
+- Route handlers under `app/api/*` apply Supabase service role keys when required, including custody event ingestion (`/api/events`) and facility directory queries (`/api/facilities`).
+- REST API surface delivers batch creation (`POST /api/batches`), batch snapshots (`GET /api/batches/:id`), DataMatrix label exports (`GET /api/batches/:id/label`), custody timelines (`GET /api/timeline`), verification (`GET /api/verify`), dispensing receipts (`POST /api/dispense`), and traceability reports (`GET /api/report`).
+- Supabase auth cookie middleware guards all private routes except `/`, `/login`, and `/auth/*`.
+- Hedera helpers in `lib/hedera` wrap the JavaScript SDK for client creation, topic management, message publishing, and Mirror Node reads.
 
-Defined in `supabase/migrations/000_init.sql`:
+### Operations Bus
+- `lib/supos/*` establishes an MQTT publisher that mirrors custody events into the supOS CE broker (default `mqtt://localhost:1883`) with QoS 1 delivery semantics.
+- The Supabase trigger `enqueue_supos_outbox` persists every custody event into `supos_outbox`, allowing `npm run worker:supos` to replay messages until the broker acknowledges publication.
+- Topics follow a Unified Namespace shape: `trace/events` carries custody transitions, while `trace/sensors/tempC` and `trace/alerts/coldchain` provide optional cold-chain telemetry and summaries for dashboards.
+- supOS converts these topics into modeled entities with History enabled so Dashboards can read from the internal TimescaleDB/Postgres store without additional ETL, while `/api/stream/supos` provides live SSE updates for the workspace UI.
 
-- `facilities`: core profile (name, type, country, GS1 company prefix).
-- `users`: Supabase-authenticated identities with role (`ADMIN`, `STAFF`, `AUDITOR`) and facility scope.
-- `batches`: GTIN, lot, expiry, quantity, current owner facility, label text, Hedera topic, creator.
-- `events`: MANUFACTURED/RECEIVED/HANDOVER/DISPENSED/RECALLED entries with Hedera metadata and SHA-256 payload hash.
-- `receipts`: pharmacy-issued verification receipts with shortcode and status.
+### Distributed Ledger
+- Hedera Consensus Service topic IDs recorded on `batches.topic_id`.
+- Custody events store `hcs_tx_id`, optional `hcs_seq_no`, and `hcs_running_hash` for reconciliation against mirror nodes.
 
-Row-level policies allow auditors full read access while other roles are scoped to their facility through helper functions `get_my_facility()`, `is_admin()`, and `is_auditor()`.
 
-Auth triggers (`public.sync_user_profile`) synchronize `auth.users` changes into `public.users`, normalizing email addresses and keeping display names aligned.
-
-## Hedera Integration
-
-- `lib/hedera/client.ts` – caches a server-side `Client` instance (mainnet/testnet/previewnet) using `HEDERA_OPERATOR_ACCOUNT_ID` and `HEDERA_OPERATOR_DER_PRIVATE_KEY`.
-- `lib/hedera/topic.ts` – exposes `createTopic()` and `submitTopicMessage()` with message size validation and transaction metadata.
-- `lib/hedera/publisher.ts` – `publishCustodyEvent()` serialises a `CustodyEventPayload`, submits it, and returns the SHA-256 payload hash plus Hedera receipt fields for persistence.
-- `lib/hedera/mirror.ts` & `lib/hedera/timeline.ts` – fetch and decode Mirror Node topic messages, returning structured custody timeline entries and `links.next` pagination data.
-- Example snippets under `lib/hedera/examples/*` mirror the official Hedera docs for topic creation, message submission, and HTS token setup.
-
-**Publishing an event**
-
-```ts
-import { publishCustodyEvent } from "@/lib/hedera";
-
-const result = await publishCustodyEvent({
-  payload: {
-    v: 1,
-    type: "HANDOVER",
-    batch: { gtin: "09506000134352", lot: "A123", exp: "2025-12-31" },
-    actor: { facilityId: "fac_123", role: "DISTRIBUTOR" },
-    to: { facilityId: "fac_987" },
-    ts: new Date().toISOString(),
-    prev: null,
-  },
-});
-
-// Persist to Postgres
-// result.payloadHash -> events.payload_hash
-// result.transactionId -> events.hcs_tx_id
-// result.sequenceNumber -> events.hcs_seq_no
-// result.runningHash -> events.hcs_running_hash
-```
-
-**Reading the custody timeline**
-
-```ts
-import { fetchCustodyTimeline } from "@/lib/hedera";
-
-const timeline = await fetchCustodyTimeline(process.env.HEDERA_TOPIC_ID!, {
-  limit: 25,
-  order: "desc",
-});
-
-timeline.entries.forEach((entry) => {
-  console.log(entry.sequenceNumber, entry.type, entry.consensusTimestamp);
-});
-```
-
-## Getting Started
-
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-2. **Configure environment variables**
-   - Copy `.env.example` to `.env.local` (or `.env`) and fill in project-specific values.
-   - Required keys: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
-   - Optional integrations: Hedera (see section below), Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`), and Africa's Talking (`AT_API_KEY`, `AT_USERNAME`).
-
-### Hedera credentials & topic setup
+## Hedera credentials & topic setup
 
 1. **Create a Hedera developer account (testnet is free)**
    - Register at [portal.hedera.com/register](https://portal.hedera.com/register) and choose the Testnet environment.
@@ -223,25 +146,6 @@ timeline.entries.forEach((entry) => {
    - Run `pnpm tsx -r dotenv/config lib/hedera/examples/topic-submit.ts 0.0.987654 "hello world"` to publish a test message.
 5. **Restart the dev server** so `/scan` and related custody timelines can append and read Hedera messages.
 
-3. **Apply database schema**
-   - Run the SQL migrations under `supabase/migrations` (`000_init.sql`, `001_add_product_name_to_batches.sql`, etc.) against your Supabase project (`supabase db push` or Supabase Studio SQL editor).
-
-4. **Start the dev server**
-   ```bash
-   npm run dev
-   ```
-   Visit `http://localhost:3000` to access the marketing site. Navigate to `/login` to authenticate.
-
-5. **Type safety and linting**
-   ```bash
-   npm run lint
-   npm run typecheck
-   ```
-
-6. **supOS configuration**
-   1. Start supOS CE (Docker compose bundle) and sign in with an administrator account.
-   2. Run `npm run worker:supos` to stream custody events into the supOS broker, and (optionally) feed temperature data using an MQTT simulator or hardware device.
-   3. Follow the detailed supOS setup below.
 
 ## supOS Setup (end‑to‑end)
 
@@ -429,7 +333,7 @@ Use this when submitting to a marketplace or judge who deploys via a template an
   # One-liner (avoids multi-line quoting issues):
   docker buildx build --platform linux/amd64 -t syntaxsurge/pack-trace:1.0.0 \
     --build-arg NEXT_PUBLIC_SUPABASE_URL="https://isyoifeidgfufyqaevrl.supabase.co" \
-    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzeW9pZmVpZGdmdWZ5cWFldnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2MzQ1MjYsImV4cCI6MjA3NzIxMDUyNn0.NQG011haTaoWU4qMeVAWMFNZ2Rljh-8wrwn57isrWkg" \
+    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" \
     --build-arg NEXT_PUBLIC_NETWORK="testnet" \
     --push .
   ```
