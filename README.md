@@ -452,26 +452,7 @@ Run the seeding script once your Supabase project is configured:
 npm run seed:demo
 ```
 
-The script reads `.env.local`, creates facilities for the manufacturer, distributor, pharmacy, and auditor personas, and loads two batches with full custody histories. By default the password is `TraceDemo!24`; override it by setting `DEMO_SEED_PASSWORD` before running the script.
-
-Demo logins after seeding:
-
-- Manufacturer admin – `manufacturer@packtrace.app`
-- Distributor operator – `distributor@packtrace.app`
-- Pharmacy technician – `pharmacy@packtrace.app`
-- Auditor reviewer – `auditor@packtrace.app`
-
-Each account uses the shared demo password (or the override you provided) and can be rotated safely by re-running the script.
-
-Quick demo access (roles and credentials)
-
-```
-Demo access provisioned:
-  ADMIN    manufacturer@packtrace.app / TraceDemo!24
-  STAFF    distributor@packtrace.app  / TraceDemo!24
-  STAFF    pharmacy@packtrace.app     / TraceDemo!24
-  AUDITOR  auditor@packtrace.app      / TraceDemo!24
-```
+The script reads `.env.local`, creates facilities for the manufacturer, distributor, pharmacy, and auditor personas, and loads two batches with full custody histories. Default seeded accounts and passwords are listed in the Demo Logins section above. Override the default password by setting `DEMO_SEED_PASSWORD` before running the script.
 
 ## Demo Runbook
 
