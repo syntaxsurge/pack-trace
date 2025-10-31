@@ -199,6 +199,68 @@ Optional operations topics (helpful for demo UI):
 - `trace/sensors/tempC` (simulated temperature telemetry)
 - `trace/alerts/coldchain` (AI‑summarised alert entries)
 
+## NodeOps Deployment (Template URL + amd64 Image)
+
+Use this when submitting to a marketplace or judge who deploys via a template and public Docker image.
+
+1) Docker Hub setup
+
+- Confirm username: https://hub.docker.com/settings/general
+- Create public repo `pack-trace`: https://hub.docker.com/repositories/new (Namespace = your username)
+- Generate a Personal Access Token: https://hub.docker.com/settings/security
+
+2) Build and push linux/amd64 image
+
+- Log in and set variables:
+  ```bash
+  docker login -u <DOCKER_USER>
+  export DOCKER_USER=<your_dockerhub_username>
+  export IMAGE=$DOCKER_USER/pack-trace:1.0.0
+  ```
+- Create a builder (once) and push:
+  ```bash
+  docker buildx create --use --name nodeopsbuilder || true
+  # Supply public Supabase vars for Next.js build-time validation
+  export NEXT_PUBLIC_SUPABASE_URL="https://<your-project>.supabase.co"
+  export NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon key>"
+  export SUPABASE_SERVICE_ROLE_KEY="placeholder"   # real value supplied at runtime
+  export NEXT_PUBLIC_NETWORK="testnet"
+
+  docker buildx build --platform linux/amd64 -t $IMAGE \
+    --build-arg NEXT_PUBLIC_SUPABASE_URL \
+    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY \
+    --build-arg SUPABASE_SERVICE_ROLE_KEY \
+    --build-arg NEXT_PUBLIC_NETWORK \
+    --push .
+  ```
+- Verify architecture and visibility:
+  ```bash
+  docker buildx imagetools inspect $IMAGE | grep -i 'Architecture: amd64'
+  ```
+- Confirm the repo is public: https://hub.docker.com/repositories
+
+3) Update NodeOps template
+
+- Edit `nodeops_template.yaml:1` and set:
+  ```yaml
+  image: <your_dockerhub_username>/pack-trace:1.0.0
+  ```
+- Required envs are already defined; NodeOps prompts for values at deploy.
+
+4) Upload template and get the Template URL
+
+- Guide: https://docs.nodeops.network/Guides/Marketplace/Configure-Compute/upload-template
+- In My Templates → Create Template:
+  - Name, Description, Category, Overview, Use cases, Thumbnail, Tutorial (YouTube), GitHub URL
+  - Paste `nodeops_template.yaml`
+  - Save, run Deploy Preview, then copy the marketplace page link (Template URL)
+
+Runtime env values (where to find them):
+- Supabase URL + anon key: Supabase project → Settings → API
+- Service role key: Supabase project → Settings → API (supply at runtime, not build)
+- Hedera account/key/topic: https://faucet.hedera.com and HashScan https://hashscan.io/testnet
+- supOS MQTT (optional): broker URL and credentials
+
 Model the aggregate and (optionally) the ops topics via Reverse Generation.
 
 - Go to Namespace:
