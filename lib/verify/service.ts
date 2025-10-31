@@ -27,6 +27,41 @@ interface VerifyOptions {
 const TIMELINE_CACHE_TTL_MS = 45_000;
 const timelineCache = new Map<string, TimelineCacheEntry>();
 
+interface VerifyCacheEntry {
+  expiresAt: number;
+  state: VerifyState;
+}
+
+const VERIFY_CACHE_TTL_MS = 60_000;
+const VERIFY_CACHE_MAX_ENTRIES = 500;
+const verifyResultCache = new Map<string, VerifyCacheEntry>();
+const verifyResultInflight = new Map<string, Promise<VerifyState>>();
+
+function createVerifyCacheKey(
+  code: string,
+  cursor: string | null,
+  limit: number,
+) {
+  return `${code}::${cursor ?? ""}::${limit}`;
+}
+
+function cloneVerifyState(state: VerifyState): VerifyState {
+  if (typeof structuredClone === "function") {
+    return structuredClone(state);
+  }
+
+  return JSON.parse(JSON.stringify(state)) as VerifyState;
+}
+
+function pruneVerifyCache() {
+  if (verifyResultCache.size <= VERIFY_CACHE_MAX_ENTRIES) return;
+
+  const oldestKey = verifyResultCache.keys().next().value;
+  if (oldestKey) {
+    verifyResultCache.delete(oldestKey);
+  }
+}
+
 function buildStatusMessage(status: VerifyStatus, fallback?: string | null) {
   if (fallback) return fallback;
 
@@ -57,32 +92,52 @@ export async function verifyCode(
 ): Promise<VerifyState> {
   const { code, cursor = null, limit = 10 } = options;
   const trimmedCode = typeof code === "string" ? code.trim() : null;
-  const admin = options.adminClient ?? createAdminClient();
+  const canCache = Boolean(trimmedCode) && !options.adminClient;
+  const cacheKey =
+    canCache && trimmedCode
+      ? createVerifyCacheKey(trimmedCode, cursor, limit)
+      : null;
 
-  let parsed = null;
-  let parseError: string | null = null;
-  let status: VerifyStatus = "idle";
-  let message: string | null = null;
+  if (cacheKey) {
+    const cached = verifyResultCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cloneVerifyState(cached.state);
+    }
 
-  if (trimmedCode) {
-    try {
-      parsed = parseGs1Datamatrix(trimmedCode);
-      status = "unknown";
-    } catch (error) {
-      parseError = (error as Error).message;
-      status = "error";
-      message = parseError;
+    const inflight = verifyResultInflight.get(cacheKey);
+    if (inflight) {
+      const state = await inflight;
+      return cloneVerifyState(state);
     }
   }
 
-  let batch: VerifyBatch | null = null;
-  let latestEventType: CustodyEventType | null = null;
+  const execution = (async (): Promise<VerifyState> => {
+    const admin = options.adminClient ?? createAdminClient();
 
-  if (parsed) {
-    const batchResponse = await admin
-      .from("batches")
-      .select(
-        `
+    let parsed = null;
+    let parseError: string | null = null;
+    let status: VerifyStatus = "idle";
+    let message: string | null = null;
+
+    if (trimmedCode) {
+      try {
+        parsed = parseGs1Datamatrix(trimmedCode);
+        status = "unknown";
+      } catch (error) {
+        parseError = (error as Error).message;
+        status = "error";
+        message = parseError;
+      }
+    }
+
+    let batch: VerifyBatch | null = null;
+    let latestEventType: CustodyEventType | null = null;
+
+    if (parsed) {
+      const batchResponse = await admin
+        .from("batches")
+        .select(
+          `
         *,
         current_owner_facility:facilities!batches_current_owner_facility_id_fkey(
           id,
@@ -90,134 +145,147 @@ export async function verifyCode(
           type
         )
       `,
-      )
-      .eq("gtin", parsed.gtin14)
-      .eq("lot", parsed.lot)
-      .maybeSingle();
+        )
+        .eq("gtin", parsed.gtin14)
+        .eq("lot", parsed.lot)
+        .maybeSingle();
 
-    if (batchResponse.error && batchResponse.error.code !== "PGRST116") {
-      throw new Error(batchResponse.error.message);
-    }
+      if (batchResponse.error && batchResponse.error.code !== "PGRST116") {
+        throw new Error(batchResponse.error.message);
+      }
 
-    const raw = (batchResponse.data as Record<string, unknown> | null) ?? null;
+      const raw =
+        (batchResponse.data as Record<string, unknown> | null) ?? null;
 
-    if (raw) {
-      const ownerRaw =
-        (raw as { current_owner_facility?: unknown }).current_owner_facility ??
-        null;
-      let ownerFacility: VerifyFacility | null = null;
+      if (raw) {
+        const ownerRaw =
+          (raw as { current_owner_facility?: unknown }).current_owner_facility ??
+          null;
+        let ownerFacility: VerifyFacility | null = null;
 
-      if (Array.isArray(ownerRaw)) {
-        const candidate = ownerRaw[0] as Record<string, unknown> | undefined;
-        if (candidate) {
+        if (Array.isArray(ownerRaw)) {
+          const candidate = ownerRaw[0] as Record<string, unknown> | undefined;
+          if (candidate) {
+            ownerFacility = {
+              id: String(candidate.id ?? ""),
+              name: (candidate.name as string | null) ?? null,
+              type: (candidate.type as string | null) ?? null,
+            };
+          }
+        } else if (ownerRaw && typeof ownerRaw === "object") {
+          const candidate = ownerRaw as Record<string, unknown>;
           ownerFacility = {
             id: String(candidate.id ?? ""),
             name: (candidate.name as string | null) ?? null,
             type: (candidate.type as string | null) ?? null,
           };
         }
-      } else if (ownerRaw && typeof ownerRaw === "object") {
-        const candidate = ownerRaw as Record<string, unknown>;
-        ownerFacility = {
-          id: String(candidate.id ?? ""),
-          name: (candidate.name as string | null) ?? null,
-          type: (candidate.type as string | null) ?? null,
+
+        batch = {
+          id: String(raw.id ?? ""),
+          product_name: (raw.product_name as string | null) ?? null,
+          gtin: String(raw.gtin ?? ""),
+          lot: String(raw.lot ?? ""),
+          expiry: String(raw.expiry ?? ""),
+          qty: Number(raw.qty ?? 0),
+          label_text: (raw.label_text as string | null) ?? null,
+          topic_id: (raw.topic_id as string | null) ?? null,
+          current_owner_facility_id:
+            (raw.current_owner_facility_id as string | null) ?? null,
+          current_owner_facility: ownerFacility,
+          pending_receipt_to_facility_id:
+            (raw.pending_receipt_to_facility_id as string | null) ?? null,
+          last_handover_event_id:
+            (raw.last_handover_event_id as string | null) ?? null,
+          created_at: String(raw.created_at ?? ""),
         };
       }
 
-      batch = {
-        id: String(raw.id ?? ""),
-        product_name: (raw.product_name as string | null) ?? null,
-        gtin: String(raw.gtin ?? ""),
-        lot: String(raw.lot ?? ""),
-        expiry: String(raw.expiry ?? ""),
-        qty: Number(raw.qty ?? 0),
-        label_text: (raw.label_text as string | null) ?? null,
-        topic_id: (raw.topic_id as string | null) ?? null,
-        current_owner_facility_id:
-          (raw.current_owner_facility_id as string | null) ?? null,
-        current_owner_facility: ownerFacility,
-        pending_receipt_to_facility_id:
-          (raw.pending_receipt_to_facility_id as string | null) ?? null,
-        last_handover_event_id:
-          (raw.last_handover_event_id as string | null) ?? null,
-        created_at: String(raw.created_at ?? ""),
+      if (!batch) {
+        status = "unknown";
+        message = buildStatusMessage(status);
+      } else if (batch.expiry !== parsed.expiryIsoDate) {
+        status = "mismatch";
+        message = buildStatusMessage(
+          status,
+          "Expiry does not match the custody record. Confirm the label and contact support.",
+        );
+      } else {
+        status = "genuine";
+        message = buildStatusMessage(status);
+      }
+    } else if (!parseError) {
+      status = "idle";
+      message = buildStatusMessage(status);
+    }
+
+    if (batch) {
+      const latestEventResponse = await admin
+        .from("events")
+        .select("type")
+        .eq("batch_id", batch.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (
+        latestEventResponse.error &&
+        latestEventResponse.error.code !== "PGRST116"
+      ) {
+        throw new Error(latestEventResponse.error.message);
+      }
+
+      const rawType =
+        (latestEventResponse.data?.type as string | null | undefined) ?? null;
+
+      if (
+        rawType === "MANUFACTURED" ||
+        rawType === "RECEIVED" ||
+        rawType === "HANDOVER" ||
+        rawType === "DISPENSED" ||
+        rawType === "RECALLED"
+      ) {
+        latestEventType = rawType;
+      }
+    }
+
+    const topicId = resolveTopicId(batch);
+
+    let timelineEntries: VerifyState["timelineEntries"] = [];
+    let timelineNote: string | null = null;
+    let timelineError: string | null = null;
+    let nextCursor: string | null = null;
+
+    if (batch && parsed && topicId) {
+      const identifiers = {
+        gtin: batch.gtin,
+        lot: batch.lot,
+        expiry: batch.expiry,
       };
-    }
 
-    if (!batch) {
-      status = "unknown";
-      message = buildStatusMessage(status);
-    } else if (batch.expiry !== parsed.expiryIsoDate) {
-      status = "mismatch";
-      message = buildStatusMessage(
-        status,
-        "Expiry does not match the custody record. Confirm the label and contact support.",
-      );
-    } else {
-      status = "genuine";
-      message = buildStatusMessage(status);
-    }
-  } else if (!parseError) {
-    status = "idle";
-    message = buildStatusMessage(status);
-  }
+      const timelineCacheKey =
+        cursor === null
+          ? `${topicId}:${identifiers.gtin}:${identifiers.lot}:${identifiers.expiry}:${limit}`
+          : null;
 
-  if (batch) {
-    const latestEventResponse = await admin
-      .from("events")
-      .select("type")
-      .eq("batch_id", batch.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      let timelineResult: Awaited<ReturnType<typeof loadBatchTimeline>>;
 
-    if (
-      latestEventResponse.error &&
-      latestEventResponse.error.code !== "PGRST116"
-    ) {
-      throw new Error(latestEventResponse.error.message);
-    }
-
-    const rawType =
-      (latestEventResponse.data?.type as string | null | undefined) ?? null;
-
-    if (
-      rawType === "MANUFACTURED" ||
-      rawType === "RECEIVED" ||
-      rawType === "HANDOVER" ||
-      rawType === "DISPENSED" ||
-      rawType === "RECALLED"
-    ) {
-      latestEventType = rawType;
-    }
-  }
-
-  const topicId = resolveTopicId(batch);
-
-  let timelineEntries: VerifyState["timelineEntries"] = [];
-  let timelineNote: string | null = null;
-  let timelineError: string | null = null;
-  let nextCursor: string | null = null;
-
-  if (batch && parsed && topicId) {
-    const identifiers = {
-      gtin: batch.gtin,
-      lot: batch.lot,
-      expiry: batch.expiry,
-    };
-
-    const cacheKey =
-      cursor === null
-        ? `${topicId}:${identifiers.gtin}:${identifiers.lot}:${identifiers.expiry}:${limit}`
-        : null;
-
-    let timelineResult: Awaited<ReturnType<typeof loadBatchTimeline>>;
-
-    if (cacheKey) {
-      const cached = timelineCache.get(cacheKey);
-      if (cached && cached.expiresAt > Date.now()) {
-        timelineResult = cached.result;
+      if (timelineCacheKey) {
+        const cached = timelineCache.get(timelineCacheKey);
+        if (cached && cached.expiresAt > Date.now()) {
+          timelineResult = cached.result;
+        } else {
+          timelineResult = await loadBatchTimeline({
+            topicId,
+            identifiers,
+            cursor,
+            limit,
+          });
+          timelineCache.set(timelineCacheKey, {
+            result: timelineResult,
+            expiresAt: Date.now() + TIMELINE_CACHE_TTL_MS,
+          });
+        }
       } else {
         timelineResult = await loadBatchTimeline({
           topicId,
@@ -225,100 +293,119 @@ export async function verifyCode(
           cursor,
           limit,
         });
-        timelineCache.set(cacheKey, {
-          result: timelineResult,
-          expiresAt: Date.now() + TIMELINE_CACHE_TTL_MS,
-        });
       }
-    } else {
-      timelineResult = await loadBatchTimeline({
-        topicId,
-        identifiers,
-        cursor,
-        limit,
+
+      timelineEntries = timelineResult.entries;
+      timelineNote = timelineResult.note;
+      timelineError = timelineResult.error;
+      nextCursor = timelineResult.nextCursor;
+    } else if (batch && !topicId) {
+      timelineError =
+        "This batch is not linked to a Hedera topic. Request support to publish custody events.";
+    }
+
+    if (!message) {
+      message = buildStatusMessage(status);
+    }
+
+    const hasRecall =
+      latestEventType === "RECALLED" ||
+      timelineEntries.some((entry) => entry.type === "RECALLED");
+
+    if (hasRecall && status !== "error" && status !== "idle") {
+      status = "recalled";
+      message = buildStatusMessage(status);
+    }
+
+    const facilityIds = new Set<string>();
+
+    if (batch?.current_owner_facility_id) {
+      facilityIds.add(batch.current_owner_facility_id);
+    }
+
+    for (const entry of timelineEntries) {
+      if (entry.actor?.facilityId) {
+        facilityIds.add(entry.actor.facilityId);
+      }
+      if (entry.to?.facilityId) {
+        facilityIds.add(entry.to.facilityId);
+      }
+    }
+
+    const facilities: Record<string, VerifyFacility> = {};
+
+    if (facilityIds.size > 0) {
+      const facilityResponse = await admin
+        .from("facilities")
+        .select("id, name, type")
+        .in("id", Array.from(facilityIds));
+
+      if (
+        facilityResponse.error &&
+        facilityResponse.error.code !== "PGRST116"
+      ) {
+        throw new Error(facilityResponse.error.message);
+      }
+
+      for (const record of (facilityResponse.data as
+        | Array<Record<string, unknown>>
+        | null
+        | undefined) ?? []) {
+        const id = String(record.id ?? "");
+        facilities[id] = {
+          id,
+          name: (record.name as string | null) ?? null,
+          type: (record.type as string | null) ?? null,
+        };
+      }
+    }
+
+    if (
+      batch &&
+      !batch.current_owner_facility &&
+      batch.current_owner_facility_id
+    ) {
+      batch.current_owner_facility =
+        facilities[batch.current_owner_facility_id] ?? null;
+    }
+
+    return {
+      code: trimmedCode,
+      parsed,
+      parseError,
+      status,
+      message,
+      batch,
+      timelineEntries,
+      timelineNote,
+      timelineError,
+      nextCursor,
+      topicId,
+      facilities,
+      latestEventType,
+    };
+  })();
+
+  if (cacheKey) {
+    verifyResultInflight.set(cacheKey, execution);
+  }
+
+  try {
+    const state = await execution;
+
+    if (cacheKey) {
+      verifyResultCache.set(cacheKey, {
+        state,
+        expiresAt: Date.now() + VERIFY_CACHE_TTL_MS,
       });
+      pruneVerifyCache();
+      return cloneVerifyState(state);
     }
 
-    timelineEntries = timelineResult.entries;
-    timelineNote = timelineResult.note;
-    timelineError = timelineResult.error;
-    nextCursor = timelineResult.nextCursor;
-  } else if (batch && !topicId) {
-    timelineError =
-      "This batch is not linked to a Hedera topic. Request support to publish custody events.";
-  }
-
-  if (!message) {
-    message = buildStatusMessage(status);
-  }
-
-  const hasRecall =
-    latestEventType === "RECALLED" ||
-    timelineEntries.some((entry) => entry.type === "RECALLED");
-
-  if (hasRecall && status !== "error" && status !== "idle") {
-    status = "recalled";
-    message = buildStatusMessage(status);
-  }
-
-  const facilityIds = new Set<string>();
-
-  if (batch?.current_owner_facility_id) {
-    facilityIds.add(batch.current_owner_facility_id);
-  }
-
-  for (const entry of timelineEntries) {
-    if (entry.actor?.facilityId) {
-      facilityIds.add(entry.actor.facilityId);
-    }
-    if (entry.to?.facilityId) {
-      facilityIds.add(entry.to.facilityId);
+    return state;
+  } finally {
+    if (cacheKey) {
+      verifyResultInflight.delete(cacheKey);
     }
   }
-
-  const facilities: Record<string, VerifyFacility> = {};
-
-  if (facilityIds.size > 0) {
-    const facilityResponse = await admin
-      .from("facilities")
-      .select("id, name, type")
-      .in("id", Array.from(facilityIds));
-
-    if (facilityResponse.error && facilityResponse.error.code !== "PGRST116") {
-      throw new Error(facilityResponse.error.message);
-    }
-
-    for (const record of (facilityResponse.data as
-      | Array<Record<string, unknown>>
-      | null
-      | undefined) ?? []) {
-      const id = String(record.id ?? "");
-      facilities[id] = {
-        id,
-        name: (record.name as string | null) ?? null,
-        type: (record.type as string | null) ?? null,
-      };
-    }
-  }
-
-  if (batch && !batch.current_owner_facility && batch.current_owner_facility_id) {
-    batch.current_owner_facility =
-      facilities[batch.current_owner_facility_id] ?? null;
-  }
-
-  return {
-    code: trimmedCode,
-    parsed,
-    parseError,
-    status,
-    message,
-    batch,
-    timelineEntries,
-    timelineNote,
-    timelineError,
-    nextCursor,
-    topicId,
-    facilities,
-    latestEventType,
-  };
 }
