@@ -65,16 +65,16 @@ export function buildHashscanTopicUrl(
   topicId: string,
 ): string {
   const base = getHashscanBase(network);
-  return `${base}/topic/${topicId}`;
+  return `${base}/topic/${topicId}/messages`;
 }
 
 export function buildHashscanMessageUrl(
   network: string,
   topicId: string,
-  sequenceNumber: number,
+  _sequenceNumber: number,
 ): string {
   const base = getHashscanBase(network);
-  return `${base}/topic/${topicId}/message/${sequenceNumber}`;
+  return `${base}/topic/${topicId}/messages`;
 }
 
 export function buildHashscanTransactionUrl(
