@@ -19,4 +19,19 @@ if (!dbUrl) {
   process.exit(1);
 }
 
-run("pnpm", ["exec", "supabase", "db", "push", "--db-url", dbUrl]);
+let finalDbUrl = dbUrl;
+
+try {
+  const parsed = new URL(dbUrl);
+  if (!parsed.searchParams.has("pgbouncer")) {
+    parsed.searchParams.set("pgbouncer", "true");
+  }
+  if (!parsed.searchParams.has("statement_cache_mode")) {
+    parsed.searchParams.set("statement_cache_mode", "describe");
+  }
+  finalDbUrl = parsed.toString();
+} catch (error) {
+  console.warn("Failed to parse SUPABASE_DB_URL, using raw value:", error);
+}
+
+run("pnpm", ["exec", "supabase", "db", "push", "--db-url", finalDbUrl]);

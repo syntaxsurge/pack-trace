@@ -1,6 +1,3 @@
-drop policy if exists "Batches readable by owner facility or auditor"
-on public.batches;
-
 create table if not exists public.batch_participants (
   batch_id uuid not null references public.batches (id) on delete cascade,
   facility_id uuid not null references public.facilities (id) on delete cascade,
@@ -50,16 +47,14 @@ begin
 end;
 $$;
 
-drop trigger if exists batches_participants_after_insert
-on public.batches;
+drop trigger if exists batches_participants_after_insert on public.batches;
 
 create trigger batches_participants_after_insert
 after insert on public.batches
 for each row
 execute function public.handle_batch_participants_on_batch();
 
-drop trigger if exists batches_participants_after_update
-on public.batches;
+drop trigger if exists batches_participants_after_update on public.batches;
 
 create trigger batches_participants_after_update
 after update of current_owner_facility_id on public.batches
@@ -67,8 +62,7 @@ for each row
 when (new.current_owner_facility_id is distinct from old.current_owner_facility_id)
 execute function public.handle_batch_participants_on_batch();
 
-drop trigger if exists events_participants_after_insert
-on public.events;
+drop trigger if exists events_participants_after_insert on public.events;
 
 create trigger events_participants_after_insert
 after insert on public.events
@@ -93,6 +87,8 @@ from public.events
 where to_facility_id is not null
 on conflict do nothing;
 
+drop policy if exists "Batches readable by participants or auditor" on public.batches;
+
 create policy "Batches readable by participants or auditor"
 on public.batches
 for select
@@ -111,14 +107,12 @@ using (
   )
 );
 
-drop policy if exists "Events readable by involved facilities or auditor"
-on public.events;
-
-drop policy if exists "Events writeable by involved facilities"
-on public.events;
-
-drop policy if exists "Events updateable by involved facilities"
-on public.events;
+drop policy if exists "Events readable by participants or auditor" on public.events;
+drop policy if exists "Events writeable by participants" on public.events;
+drop policy if exists "Events updateable by participants" on public.events;
+drop policy if exists "Events readable by involved facilities or auditor" on public.events;
+drop policy if exists "Events writeable by involved facilities" on public.events;
+drop policy if exists "Events updateable by involved facilities" on public.events;
 
 create policy "Events readable by participants or auditor"
 on public.events
