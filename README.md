@@ -221,8 +221,8 @@ Use this when submitting to a marketplace or judge who deploys via a template an
   # Supply public Supabase vars for Next.js build-time validation
   # One-liner (avoids multi-line quoting issues):
   docker buildx build --platform linux/amd64 -t syntaxsurge/pack-trace:1.0.0 \
-    --build-arg NEXT_PUBLIC_SUPABASE_URL="https://<your-project>.supabase.co" \
-    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon key>" \
+    --build-arg NEXT_PUBLIC_SUPABASE_URL="https://isyoifeidgfufyqaevrl.supabase.co" \
+    --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzeW9pZmVpZGdmdWZ5cWFldnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2MzQ1MjYsImV4cCI6MjA3NzIxMDUyNn0.NQG011haTaoWU4qMeVAWMFNZ2Rljh-8wrwn57isrWkg" \
     --build-arg NEXT_PUBLIC_NETWORK="testnet" \
     --push .
   ```
@@ -236,7 +236,7 @@ Use this when submitting to a marketplace or judge who deploys via a template an
 
 - Edit `nodeops_template.yaml:1` and set:
   ```yaml
-  image: <your_dockerhub_username>/pack-trace:1.0.0
+  image: syntaxsurge/pack-trace:1.0.0
   ```
 - Required envs are already defined; NodeOps prompts for values at deploy.
 
