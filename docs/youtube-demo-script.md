@@ -2,16 +2,16 @@
 
 This script covers the full 7–8 minute cut: custody on Hedera, live ops in supOS, AI alert summaries, and a simple print→scan→handover flow. Times are guide rails—trim as needed.
 
-## Problem (0:00–0:20)
+## 1. Problem (0:00–0:20)
 - Shot: Landing page `/`
 - VO: “Counterfeits and quality failures cost lives—WHO says at least 1 in 10 medical products in Low and Middle-Income Countries is substandard or falsified. In the U.S., Drug Supply Chain Security Act now pushes interoperable, electronic tracking because paper trails fail. Temperature excursions remain a logistics risk, demanding continuous monitoring. Our demo ties it together: public custody on Hedera, live monitoring in supOS.”
 
-## Solution (0:20–0:45)
+## 2. Solution (0:20–0:45)
 - Shot: Stay on hero; hover “Get Started”
 - Lower‑third: “Custody → Hedera • Operations → supOS”
 - VO: “supOS runs our real‑time factory data (UNS/MQTT/Node‑RED/dashboards); Hedera gives us the public, immutable custody log (HCS/Mirror). We’re using both layers because operations and compliance are different problems.”
 
-## Create Batch (1:05–1:55)
+## 3. Create Batch (1:05–1:55)
 - Shot: Log in as Manufacturer → `/batches/new`
 - VO: “We’re logged in as Manufacturer. On the Create Batch form, enter the fields: Product, GTIN, Lot, Expiry, and Quantity.”
 - Fill exactly:
@@ -23,25 +23,23 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - Click Create → land on `/batches/[id]` (label preview + on‑chain panel)
 - VO: “Batch created; label preview and on‑chain panel are ready.”
 
-## Print → Tape → Scan (1:55–2:30)
+## 4. Print → Tape → Scan (1:55–2:30)
 - Shot: Click Print; tape the label to the package.
 - Cut: `/scan`; webcam parses the label; details appear.
 - VO: “We print and tape the label to the package, then scan it to capture the batch details.”
 
-## Manufacturer Handover (2:30–3:00)
+## 5. Manufacturer Handover (2:30–3:00)
 - Shot: `/scan` → Handover → choose Distributor (toast confirms)
 - Lower‑third: “Outbox QoS‑1 → MQTT 1883 → supOS”
-- VO: “Still logged in as Manufacturer, we hand over to the Distributor; the event is persisted and streamed to supOS.”
-- VO: “Now log out as Manufacturer and log in as Distributor.”
+- VO: “Still logged in as Manufacturer, we hand over to the Distributor; the event is notarized on Hedera—click ‘View on HashScan’ to see the on‑chain sequence number—and it’s then persisted and streamed to supOS.”
 
-## Distributor Receive (3:00–3:25)
+## 6. Distributor Receive & Handover → Pharmacy (3:00–3:25)
+- VO: “Now log out as Manufacturer and log in as Distributor.”
 - Shot: Log in as Distributor → `/scan` → Receive
 - VO: “We’re logged in as Distributor; only the intended recipient can receive while a pending handover exists.”
-- VO: “After receiving, log out as Distributor and log in as Distributor again for the next handover, or proceed directly if already on the page.”
-
-## Distributor Handover → Pharmacy (3:25–3:50)
+- VO: “After receiving, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS.”
 - Shot: Still as Distributor → `/scan` → Handover → choose Pharmacy
-- VO: “As Distributor we hand over to the Pharmacy. Now log out as Distributor and log in as Pharmacy.”
+- VO: “As Distributor we hand over to the Pharmacy. After handover, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS. Now log out as Distributor and log in as Pharmacy.”
 
 ## Pharmacy Receive (3:50–4:15)
 - Shot: Log in as Pharmacy → `/scan` → Receive
