@@ -5,6 +5,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 ## 1. Problem (0:00–0:20)
 - Shot: Landing page `/`
 - VO: “Counterfeits and quality failures cost lives—WHO says at least 1 in 10 medical products in Low and Middle-Income Countries is substandard or falsified. In the U.S., Drug Supply Chain Security Act now pushes interoperable, electronic tracking because paper trails fail. Temperature excursions remain a logistics risk, demanding continuous monitoring. Our demo ties it together: public custody on Hedera, live monitoring in supOS.”
+- VO: “This project is NodeOps‑ready with a public linux/amd64 Docker image and a marketplace template URL for one‑click deploys.”
 
 ## 2. Solution (0:20–0:45)
 - Shot: Stay on hero; hover “Get Started”
@@ -71,6 +72,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 
 ## 12. Outro (7:30–7:50)
 - Shot: supOS dashboard and Pack‑Trace `/batches/[id]` side‑by‑side
+- VO: “Thanks to the NodeOps template, this exact stack is repeatable in one click for reviewers and customers alike.”
 - VO: “supOS runs live operations; Hedera provides the public, immutable custody trail. Together they answer: where it was—and whether it was handled safely.”
 
 ---
