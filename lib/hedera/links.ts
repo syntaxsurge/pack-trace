@@ -71,10 +71,10 @@ export function buildHashscanTopicUrl(
 export function buildHashscanMessageUrl(
   network: string,
   topicId: string,
-  _sequenceNumber: number,
+  sequenceNumber: number,
 ): string {
   const base = getHashscanBase(network);
-  return `${base}/topic/${topicId}/messages`;
+  return `${base}/topic/${topicId}/message/${sequenceNumber}`;
 }
 
 export function buildHashscanTransactionUrl(

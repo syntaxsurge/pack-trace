@@ -18,7 +18,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { serverEnv } from "@/lib/env/server";
 import {
-  buildHashscanMessageUrl,
   buildHashscanTopicUrl,
   buildMirrorMessageUrl,
   buildMirrorTopicUrl,
@@ -316,13 +315,7 @@ export default async function BatchTimelinePage({
       : null;
 
   const hashscanMessageUrl =
-    sequenceSource === "ledger" && topicId && latestLedgerSequence !== null
-      ? buildHashscanMessageUrl(
-          serverEnv.network,
-          topicId,
-          latestLedgerSequence,
-        )
-      : null;
+    sequenceSource === "ledger" && hashscanTopicUrl ? hashscanTopicUrl : null;
 
   const hasDatabaseLedgerOnly =
     !timelineError &&

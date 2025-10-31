@@ -102,6 +102,9 @@ export default function Home() {
             <a className="transition-colors hover:text-primary" href="#flows">
               Flows
             </a>
+            <Link className="transition-colors hover:text-primary" href="/verify">
+              Verify
+            </Link>
           </nav>
           <AuthButton />
         </div>
@@ -382,6 +385,11 @@ export default function Home() {
                   <a href="#flows" className="hover:text-primary transition-colors">
                     Flows
                   </a>
+                </li>
+                <li>
+                  <Link href="/verify" className="hover:text-primary transition-colors">
+                    Verify
+                  </Link>
                 </li>
               </ul>
             </div>

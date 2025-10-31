@@ -61,6 +61,7 @@ export interface ParsedGs1Datamatrix {
   lot: string;
   expiryIsoDate: string;
   expiryYyMmDd: string;
+  serial: string | null;
   raw: string;
   humanReadable: string;
 }
@@ -176,13 +177,16 @@ function stripSymbologyPrefix(value: string): string {
 }
 
 function parseHumanReadableGs1(value: string): ParsedGs1Datamatrix | null {
-  const match = /\(01\)(\d{14})\(10\)([^()]+)\(17\)(\d{6})/.exec(value);
+  const match =
+    /\(01\)(\d{14})(?:\(21\)([^()]{1,20}))?\(10\)([^()]{1,20})\(17\)(\d{6})/.exec(
+      value,
+    );
 
   if (!match) {
     return null;
   }
 
-  const [, gtin, lot, expiry] = match;
+  const [, gtin, serial, lot, expiry] = match;
 
   const gtin14 = normalizeGtin(gtin);
   const expiryIsoDate = toIsoDateFromYyMmDd(expiry);
@@ -194,6 +198,7 @@ function parseHumanReadableGs1(value: string): ParsedGs1Datamatrix | null {
     lot,
     expiryIsoDate,
     expiryYyMmDd: expiry,
+    serial: serial ?? null,
     raw: value,
     humanReadable,
   };
@@ -208,7 +213,7 @@ function parseMachineReadableGs1(
     .trim();
 
   const pattern = new RegExp(
-    String.raw`^01(\d{14})10([^\x1d]{1,20})(?:${FNC1})?17(\d{6})$`,
+    String.raw`^01(\d{14})(?:21([^\x1d]{1,20}))?10([^\x1d]{1,20})(?:${FNC1})?17(\d{6})$`,
   );
   const match = pattern.exec(sanitized);
 
@@ -216,7 +221,7 @@ function parseMachineReadableGs1(
     return null;
   }
 
-  const [, gtin, lot, expiry] = match;
+  const [, gtin, serial, lot, expiry] = match;
 
   const gtin14 = normalizeGtin(gtin);
   const expiryIsoDate = toIsoDateFromYyMmDd(expiry);
@@ -228,6 +233,7 @@ function parseMachineReadableGs1(
     lot,
     expiryIsoDate,
     expiryYyMmDd: expiry,
+    serial: serial ?? null,
     raw: value,
     humanReadable,
   };

@@ -36,14 +36,14 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 ## 6. Distributor Receive & Handover → Pharmacy (3:00–3:40)
 - VO: “Log out as Manufacturer, then log in as Distributor.”
 - Shot: Distributor → `/scan` → Receive
-- VO: “As Distributor, we receive the batch. The page shows the Hedera sequence with a ‘View on HashScan’ link, and the event appears in supOS.”
+- VO: “As Distributor, we scan the barcode on the package, then we receive the batch.”
 - Shot: Still as Distributor → `/scan` → Handover → choose Pharmacy
 - VO: “Then we hand over to Pharmacy—the on‑chain sequence updates, and the handover streams into supOS.”
-- VO: “Log out as Distributor, then log in as Pharmacy.”
 
 ## 7. Pharmacy Receive & Dispense (3:50–4:20)
+- VO: “Log out as Distributor, then log in as Pharmacy.”
 - Shot: Log in as Pharmacy → `/scan` → Receive
-- VO: “As Pharmacy, we receive the batch—on‑chain and supOS both update—and dispense becomes available.”
+- VO: “As Pharmacy, we scan the barcode on the package, we receive the batch—on‑chain and supOS both update—and dispense becomes available.”
 - Shot: Still as Pharmacy → `/scan` → Dispense
 - VO: “We dispense. The final event is recorded on Hedera and reflected in supOS; custody controls are now closed.”
 
