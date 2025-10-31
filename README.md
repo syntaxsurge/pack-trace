@@ -1,6 +1,26 @@
-# pack-trace
+# PackTrace
 
-pack-trace is a pack-level traceability control plane that combines GS1-compliant labeling, Hedera Consensus Service event signing, and Supabase-authenticated dashboards. The day-one implementation ships a production-ready foundation for manufacturing, distribution, dispensing, and auditing teams.
+[![PackTrace Demo](public/images/pack-trace-demo.png)](https://www.youtube.com/watch?v=hJAu5NF_61I)
+
+### Quick Links
+
+| Resource | Link |
+| --- | --- |
+| Pitch Deck | https://www.canva.com/design/DAG3XwUtWbQ/gQ-hhHi7xIjtI0EyhLazyg/edit?utm_content=DAG3XwUtWbQ&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton |
+| YouTube Video Demo | https://www.youtube.com/watch?v=hJAu5NF_61I |
+| Live Website | https://pack-trace.vercel.app/ |
+| Hashgraph Developer Course Certificate | https://drive.google.com/file/d/10fQnK3CINl5sH9a2s4m0pUzO2I9Lo_QH/view?usp=sharing |
+
+### Demo Logins (seeded)
+
+- Manufacturer admin – `manufacturer@packtrace.app` / `TraceDemo!24`
+- Distributor operator – `distributor@packtrace.app` / `TraceDemo!24`
+- Pharmacy technician – `pharmacy@packtrace.app` / `TraceDemo!24`
+- Auditor reviewer – `auditor@packtrace.app` / `TraceDemo!24`
+
+Use `npm run seed:demo` after configuring `.env` to provision these accounts. Override the default password by setting `DEMO_SEED_PASSWORD`.
+
+PackTrace is a pack-level traceability control plane that combines GS1-compliant labeling, Hedera Consensus Service event signing, and Supabase-authenticated dashboards. The day-one implementation ships a production-ready foundation for manufacturing, distribution, dispensing, and auditing teams.
 
 ## Highlights
 
