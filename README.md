@@ -12,9 +12,9 @@
 
 | Resource | Link |
 | --- | --- |
+| Live Website | https://pack-trace.vercel.app/ |
 | Pitch Deck | https://www.canva.com/design/DAG3XwUtWbQ/gQ-hhHi7xIjtI0EyhLazyg/edit?utm_content=DAG3XwUtWbQ&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton |
 | YouTube Video Demo | https://www.youtube.com/watch?v=hJAu5NF_61I |
-| Live Website | https://pack-trace.vercel.app/ |
 | Hashgraph Developer Course Certificate | https://drive.google.com/file/d/10fQnK3CINl5sH9a2s4m0pUzO2I9Lo_QH/view?usp=sharing |
 | NodeOps Template URL (For easy deployment) | https://cloud.nodeops.network/marketplace/d42cgfkc6prc7390ivcg |
 
@@ -52,6 +52,8 @@ Fastest way to test: Use these default seeded credentials to sign in on the Live
 
 
 ## Deployment & Setup (under 10 minutes)
+
+Quickest test: sign in on the Live Website with the default seeded credentials. But, to deploy or run locally, follow the steps below.
 
 1) Clone and install
 - `git clone https://github.com/syntaxsurge/pack-trace && cd pack-trace`
