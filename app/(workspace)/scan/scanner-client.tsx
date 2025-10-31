@@ -197,6 +197,7 @@ export function ScannerClient({
   const verifyErrorCooldownRef = useRef<
     Map<string, VerifyErrorCooldownEntry>
   >(new Map());
+  const decodeErrorRef = useRef<string | null>(null);
   const prefetchedBatchIdsRef = useRef<Set<string>>(new Set());
 
   const activeVerification =
@@ -458,6 +459,7 @@ export function ScannerClient({
         const parsed = parseGs1Datamatrix(rawValue);
         setScanPayload(parsed);
         setPayloadError(null);
+        decodeErrorRef.current = null;
         setDecodeError(null);
         setLastSource(context.origin);
         setActionState({ state: "idle" });
@@ -483,7 +485,11 @@ export function ScannerClient({
   );
 
   const handleDecodeError = useCallback((message: string | null) => {
-    setDecodeError((previous) => (previous === message ? previous : message));
+    if (decodeErrorRef.current === message) {
+      return;
+    }
+    decodeErrorRef.current = message;
+    setDecodeError(message);
     if (message) {
       setScanPayload(() => null);
       setVerificationState((previous) =>
@@ -495,6 +501,7 @@ export function ScannerClient({
   const handleClearScan = useCallback(() => {
     setScanPayload(null);
     setPayloadError(null);
+    decodeErrorRef.current = null;
     setDecodeError(null);
     setLastSource(null);
     setVerificationState({ status: "idle" });
