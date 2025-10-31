@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/marketing/site-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, FileText, QrCode, RadioTower, ShieldCheck, CheckCircle2, Truck, ShoppingBag, Sparkles } from "lucide-react";
+import { ArrowRight, FileText, QrCode, RadioTower, ShieldCheck, CheckCircle2, Truck, ShoppingBag, Sparkles, PlayCircle } from "lucide-react";
 
 const featureCards = [
   {
@@ -200,6 +200,84 @@ export default function Home() {
               </a>
             </Card>
           ))}
+        </div>
+      </section>
+
+      {/* Video Demo Section */}
+      <section className="mx-auto w-full max-w-7xl px-6 py-20">
+        <div className="space-y-8">
+          <div className="space-y-4 text-center">
+            <Badge variant="secondary" className="mb-2 gap-1.5">
+              <PlayCircle className="h-3 w-3" />
+              Live Demo
+            </Badge>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              See pack-trace in action
+            </h2>
+            <p className="mx-auto max-w-3xl text-base text-muted-foreground sm:text-lg">
+              Watch how pack-trace delivers end-to-end pharmaceutical traceability with
+              GS1 standards, Hedera blockchain integration, and real-time operations monitoring.
+            </p>
+          </div>
+
+          <Card className="overflow-hidden border-2 bg-gradient-to-br from-primary/5 via-accent/5 to-background">
+            <CardContent className="p-0">
+              <div className="relative aspect-video w-full">
+                <iframe
+                  className="h-full w-full"
+                  src="https://www.youtube.com/embed/hJAu5NF_61I"
+                  title="pack-trace Demo Video"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 sm:grid-cols-3">
+            <Card className="border bg-background/50">
+              <CardHeader className="space-y-1 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-md bg-primary/10 p-1.5">
+                    <QrCode className="h-4 w-4 text-primary" aria-hidden="true" />
+                  </div>
+                  <CardTitle className="text-base">Batch Creation</CardTitle>
+                </div>
+                <CardDescription className="text-sm">
+                  Generate GS1 DataMatrix labels and publish manufacturing events to Hedera
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="border bg-background/50">
+              <CardHeader className="space-y-1 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-md bg-accent/10 p-1.5">
+                    <Truck className="h-4 w-4 text-accent" aria-hidden="true" />
+                  </div>
+                  <CardTitle className="text-base">Custody Tracking</CardTitle>
+                </div>
+                <CardDescription className="text-sm">
+                  Scan labels to record handovers and receipts with blockchain verification
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="border bg-background/50">
+              <CardHeader className="space-y-1 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-md bg-success/10 p-1.5">
+                    <ShieldCheck className="h-4 w-4 text-success" aria-hidden="true" />
+                  </div>
+                  <CardTitle className="text-base">Live Operations</CardTitle>
+                </div>
+                <CardDescription className="text-sm">
+                  Monitor cold-chain conditions and custody events via supOS dashboards
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         </div>
       </section>
 

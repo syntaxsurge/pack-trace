@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 import { AuthButton } from "@/components/auth-button";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 interface SiteHeaderProps {
   basePath?: string;
@@ -58,7 +59,10 @@ export function SiteHeader({ basePath = "" }: SiteHeaderProps) {
             );
           })}
         </nav>
-        <AuthButton />
+        <div className="flex items-center gap-2">
+          <ThemeSwitcher />
+          <AuthButton />
+        </div>
       </div>
     </header>
   );
