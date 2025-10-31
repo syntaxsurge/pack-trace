@@ -402,6 +402,15 @@ Demo access provisioned:
 
 Record the 10-minute walkthrough using the scripted checklist in `docs/demo-runbook.md`. It covers environment preparation, camera/printing tips, user profile sequencing, supOS cut-ins, and narration beats so the final edit captures every custody hop, Hedera proof, and cold-chain alert in a single take.
 
+### YouTube Script – Distributor Receive & Handover VO
+
+- “Log out as Manufacturer, then log in as Distributor.”
+- Shot: Distributor → `/scan` → Receive
+- “As Distributor, we receive the batch. The batch page shows the Hedera sequence number with a ‘View on HashScan’ link, and the same event streams live into supOS.”
+- Shot: Still as Distributor → `/scan` → Handover → choose Pharmacy
+- “Next, we hand over to the Pharmacy. Again, the event is written to Hedera (sequence + HashScan link) and streamed to supOS.”
+- “Log out as Distributor, then log in as Pharmacy.”
+
 ## Reference Links
 
 - Hedera Consensus Service: [submit a message](https://docs.hedera.com/hedera/sdks-and-apis/sdks/consensus-service/submit-a-message)

@@ -41,13 +41,11 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - Shot: Still as Distributor → `/scan` → Handover → choose Pharmacy
 - VO: “As Distributor we hand over to the Pharmacy. After handover, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS. Now log out as Distributor and log in as Pharmacy.”
 
-## Pharmacy Receive (3:50–4:15)
+## Pharmacy Receive & Dispense (3:50–4:15)
 - Shot: Log in as Pharmacy → `/scan` → Receive
-- VO: “We’re logged in as Pharmacy; we confirm receipt and dispense unlocks.”
-
-## Pharmacy Dispense (4:15–4:40)
+- VO: “We’re logged in as Pharmacy; we confirm receipt and dispense unlocks. “After receiving, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS.”
 - Shot: Still as Pharmacy → `/scan` → Dispense
-- VO: “Only the current owner with pharmacy role can dispense.”
+- VO: “Only the current owner with pharmacy role can dispense. “After dispensing, as you see we could see the sequence number and view on hashscan link on hedera and it is also streamed to supOS”
 
 ## Hedera Proof: HashScan (4:40–5:10)
 - Shot: `/batches/[id]` → “View on HashScan”; show matching sequence numbers and timestamps
