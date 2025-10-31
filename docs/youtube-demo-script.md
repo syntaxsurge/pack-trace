@@ -80,8 +80,8 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 
 ## 12. Outro (7:30–7:50)
 - Shot: supOS dashboard and Pack‑Trace `/batches/[id]` side‑by‑side
-- VO: “Thanks to the NodeOps template, this exact stack is repeatable in one click for reviewers and customers alike.”
-- VO: “supOS runs live operations; Hedera provides the public, immutable custody trail. Together they answer: where it was—and whether it was handled safely.”
+- VO: “Deploy your own instance from the NodeOps template URL in the description—it's a one‑click launch.”
+- VO: “Links in the description: template URL, public Docker image, GitHub repo, and demo runbook. Thanks for watching.”
 
 ---
 
