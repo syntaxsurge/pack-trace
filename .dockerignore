@@ -1,0 +1,8 @@
+node_modules
+.next/cache
+.next/trace
+.next/server/app/**/*.map
+npm-debug.log
+pnpm-debug.log
+.env*
+supabase/.temp

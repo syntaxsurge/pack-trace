@@ -51,6 +51,7 @@ const nextConfig: NextConfig = {
       "./node_modules/.pnpm/@foliojs-fork+fontkit@*/node_modules/@foliojs-fork/fontkit/data.trie",
     ],
   },
+  output: "standalone",
 };
 
 export default pwa(nextConfig);

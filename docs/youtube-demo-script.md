@@ -59,7 +59,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - Shot: `/reports` → search by GTIN/lot/product → export PDF or CSV
 - VO: “The reports page exports custody as PDF or CSV. The PDF includes a facility certificate with the batch summary, custody timeline, on‑chain sequence references, and an event ledger you can share with auditors.”
 
-## supOS Namespace + Topics (5:40–6:10)
+## 11. supOS Namespace + Topics (5:40–6:10)
 - Shot: supOS → Namespace → modeled topics (History ON)
 - Lower‑third: “trace/events = canonical custody stream (real‑time)”
 - VO: “`trace/events` is the canonical custody stream used by dashboards—this is real‑time from the app.”
