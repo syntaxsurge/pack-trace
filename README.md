@@ -213,14 +213,14 @@ Use this when submitting to a marketplace or judge who deploys via a template an
 
 - Log in:
   ```bash
-  docker login -u <your_dockerhub_username>
+  docker login -u syntaxsurge
   ```
 - Create a builder (once) and push:
   ```bash
   docker buildx create --use --name nodeopsbuilder || true
   # Supply public Supabase vars for Next.js build-time validation
   # One-liner (avoids multi-line quoting issues):
-  docker buildx build --platform linux/amd64 -t <your_dockerhub_username>/pack-trace:1.0.0 \
+  docker buildx build --platform linux/amd64 -t syntaxsurge/pack-trace:1.0.0 \
     --build-arg NEXT_PUBLIC_SUPABASE_URL="https://<your-project>.supabase.co" \
     --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="<anon key>" \
     --build-arg NEXT_PUBLIC_NETWORK="testnet" \
@@ -228,7 +228,7 @@ Use this when submitting to a marketplace or judge who deploys via a template an
   ```
 - Verify architecture and visibility:
   ```bash
-  docker buildx imagetools inspect <your_dockerhub_username>/pack-trace:1.0.0 | grep -i 'Architecture: amd64'
+  docker buildx imagetools inspect syntaxsurge/pack-trace:1.0.0 | grep -i 'Architecture: amd64'
   ```
 - Confirm the repo is public: https://hub.docker.com/repositories
 
