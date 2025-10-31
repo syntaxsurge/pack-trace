@@ -13,7 +13,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - Shot: Click ‘Deploy Preview’ → environment form.
 - VO: “For testing here, I’ll use Deploy Preview, then fill PackTrace environment variables: Supabase URL, anon key, service role key, Hedera topic and operator, and keep network as testnet.”
 - Shot: Click Deploy; wait for atlasnetwork.app URL → open it.
-- VO: “We’re live on the Deploy Preview. I’ll log in as Manufacturer, create a new batch, confirm the on‑chain timeline, and then move on to the solutions.”
+- VO: “And we’re live on the Deploy Preview. I’ll log in as Manufacturer, create a new batch to fully exercise the flow, and confirm the on‑chain interaction and history are updating in real time—then we’ll dive straight into the solutions.”
 
 ## 2. Solution (0:20–0:45)
 - Shot: Stay on hero; hover “Get Started”
@@ -80,8 +80,8 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 
 ## 12. Outro (7:30–7:50)
 - Shot: supOS dashboard and Pack‑Trace `/batches/[id]` side‑by‑side
-- VO: “Deploy your own instance from the NodeOps template URL in the description (one‑click), or visit the live demo at https://pack-trace.vercel.app/.”
-- VO: “Links in the description: template URL, public Docker image, GitHub repo, and demo runbook. Thanks for watching.”
+- VO: “Deploy your own instance from the NodeOps template URL in the description (one‑click), or visit the live demo at pack-trace.vercel.app”
+- VO: “Links in the description: template URL, public Docker image, and GitHub repo. Thanks for watching.”
 
 ---
 
