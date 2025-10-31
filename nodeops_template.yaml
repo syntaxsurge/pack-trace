@@ -1,7 +1,7 @@
 version: 0.1
 services:
   packtrace-web:
-    image: YOUR_DOCKERHUB_USERNAME/pack-trace:1.0.0
+    image: syntaxsurge/pack-trace:1.0.0
     imagePullPolicy: IfNotPresent
     ports:
       - containerPort: 3000
