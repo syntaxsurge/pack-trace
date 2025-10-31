@@ -13,7 +13,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - Shot: Click ‘Deploy Preview’ → environment form.
 - VO: “For testing here, I’ll use Deploy Preview, then fill PackTrace environment variables: Supabase URL, anon key, service role key, Hedera topic and operator, and keep network as testnet.”
 - Shot: Click Deploy; wait for atlasnetwork.app URL → open it.
-- VO: “And we’re live. From here you can log in as Manufacturer and create a new batch to comprehensively test the flow.”
+- VO: “We’re live on the Deploy Preview. I’ll log in as Manufacturer, create a new batch, confirm the on‑chain timeline, and then move on to the solutions.”
 
 ## 2. Solution (0:20–0:45)
 - Shot: Stay on hero; hover “Get Started”
