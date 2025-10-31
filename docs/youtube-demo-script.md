@@ -69,11 +69,7 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - VO: “`trace/alerts/coldchain` summarizes sustained temperature breaches—also simulated here to demonstrate alerting and history.”
 - VO: “In production we keep costs low by measuring at the lane, room, truck, or shipper/pallet level—not item level. A common setup is ESP32 with a DS18B20 probe publishing JSON to MQTT, or BLE tags with a small gateway.”
 
-## Dashboards (6:50–7:30)
-- Shot: supOS → Dashboards → table bound to `trace/events` ordered by `ts` desc; optional alert list for cold‑chain
-- VO: “Dashboards update immediately. Operators see who acted and when, with on‑ledger references; telemetry and AI‑summarised alerts provide cold‑chain context.”
-
-## Outro (7:30–7:50)
+## 12. Outro (7:30–7:50)
 - Shot: supOS dashboard and Pack‑Trace `/batches/[id]` side‑by‑side
 - VO: “supOS runs live operations; Hedera provides the public, immutable custody trail. Together they answer: where it was—and whether it was handled safely.”
 
