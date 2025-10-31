@@ -301,16 +301,6 @@ Note: custody events on `trace/events` are live production writes; tempC and col
 - Grafana: `http://192.168.1.4:3300` (remapped from 3000)
 - Node‑RED (eventflow): `http://192.168.1.4:1889`
 
-### Command Reference (as used in this setup)
-
-- Clone supOS CE: `git clone https://github.com/FREEZONEX/supOS-CE`
-- Start supOS CE: `bash bin/install.sh`
-- Remap Grafana port and restart: `docker compose -p supos -f docker-compose-4c8g.yml up -d grafana`
-- Apply Pack‑Trace migrations: `pnpm db:push`
-- Run the worker: `pnpm worker:supos`
-- Start the app: `pnpm dev`
-- Simulate temperature: `pnpm sim:temp -- <batchId>`
-
 
 ## NodeOps Deployment (Template URL + amd64 Image)
 
