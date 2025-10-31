@@ -7,6 +7,14 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 - VO: “Counterfeits and quality failures cost lives—WHO says at least 1 in 10 medical products in Low and Middle-Income Countries is substandard or falsified. In the U.S., Drug Supply Chain Security Act now pushes interoperable, electronic tracking because paper trails fail. Temperature excursions remain a logistics risk, demanding continuous monitoring. Our demo ties it together: public custody on Hedera, live monitoring in supOS.”
 - VO: “This project is NodeOps‑ready with a public linux/amd64 Docker image and a marketplace template URL for one‑click deploys.”
 
+## 2A. One‑Click Deploy (NodeOps) (0:45–1:05)
+- Shot: Open the NodeOps template URL (in video description) → Template page.
+- VO: “If you want to deploy this quickly, open the NodeOps template URL linked in the description and click Deploy.”
+- Shot: Click ‘Deploy Preview’ → environment form.
+- VO: “For testing here, I’ll use Deploy Preview, then fill PackTrace environment variables: Supabase URL, anon key, service role key, Hedera topic and operator, and keep network as testnet.”
+- Shot: Click Deploy; wait for atlasnetwork.app URL → open it.
+- VO: “And we’re live. From here you can log in as Manufacturer and create a new batch to comprehensively test the flow.”
+
 ## 2. Solution (0:20–0:45)
 - Shot: Stay on hero; hover “Get Started”
 - Lower‑third: “Custody → Hedera • Operations → supOS”
