@@ -52,6 +52,15 @@ const nextConfig: NextConfig = {
     ],
   },
   output: "standalone",
+  async redirects() {
+    return [
+      {
+        source: "/demo-video",
+        destination: "https://www.youtube.com/watch?v=hJAu5NF_61I",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default pwa(nextConfig);
