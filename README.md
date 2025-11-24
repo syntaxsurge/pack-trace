@@ -104,6 +104,8 @@ Quickest test: sign in on the Live Website with the default seeded credentials. 
    [ supOS (MQTT/Namespace/Dashboards) ] <--- outbox worker (QoS 1)
 ```
 
+![Simplified Diagram](docs/images/simplified-diagram.png)
+
 ### Frontend
 - Next.js App Router with Tailwind and shadcn/ui primitives.
 - Client-side Supabase browser client for auth interactions.
@@ -348,95 +350,110 @@ Home → Event Flow → + New Event Flow → Name `packtrace-stuck`, Template `n
 ```js
 /**
  * Detect stuck shipments:
- * - When we see a HANDOVER, remember it in global state.
- * - When we see a matching RECEIVE, clear it.
- * - When a HANDOVER has been pending longer than SLA minutes,
- *   emit an alert once.
+ * - Track all HANDOVER events in global state.
+ * - Clear them when we see a matching RECEIVE.
+ * - On each run, check ALL pending handovers and emit alerts
+ *   if they have been pending longer than SLA minutes.
  */
 
 const e = msg.payload || {};
 
-// CONFIG
-const SLA_MINUTES = 5;      // demo-friendly; real life might be 120+
+// CONFIG: how long before we call a shipment "stuck"
+const SLA_MINUTES = 1;      // demo-friendly; real deployments: e.g. 120+
 const SLA_MS = SLA_MINUTES * 60 * 1000;
 
 const now = Date.now();
 
-// Get state from global context
-let handovers    = global.get("handovers")    || {};  // batchId -> { atMs, event }
-let stuckAlerts  = global.get("stuckAlerts")  || {};  // batchId -> true
+// Load state from global context
+let handovers   = global.get("handovers")   || {};  // batchId -> { atMs, event }
+let stuckAlerts = global.get("stuckAlerts") || {};  // batchId -> true
 
-const batchId = e.batchId || e.batchID || e.batch || null;
-const type    = (e.type || "").toUpperCase();
+// Try to read batch id and type from the event
+// NOTE: for PackTrace events, batch.id is the canonical id
+const batchId =
+  e.batchId ||
+  (e.batch && e.batch.id) ||
+  null;
 
-if (!batchId || !type) {
-  // Not a custody event we care about
-  return null;
+const type = (e.type || "").toUpperCase();
+
+// If this message is a "normal" custody event, update state
+if (batchId && type) {
+  if (type === "HANDOVER") {
+    // Use the event timestamp if provided, else "now"
+    const atMs = e.ts ? Date.parse(e.ts) : (e.at ? Date.parse(e.at) : now);
+
+    handovers[batchId] = {
+      atMs,
+      event: e
+    };
+
+    // No alert yet — we just start the clock
+  }
+
+  if (type === "RECEIVE" || type === "RECEIVED") {
+    // Shipment arrived — clear any pending handover and alert flag
+    delete handovers[batchId];
+    delete stuckAlerts[batchId];
+  }
 }
 
-if (type === "HANDOVER") {
-  // Record / update pending handover
-  const atMs = e.at ? Date.parse(e.at) : now;
+// Now scan ALL pending handovers to see if any are overdue
+const alertsToSend = [];
 
-  handovers[batchId] = {
-    atMs,
-    event: e,
-  };
+for (const id of Object.keys(handovers)) {
+  const pending = handovers[id];
+  const ageMs = now - pending.atMs;
 
-  // Save back state
-  global.set("handovers", handovers);
-  global.set("stuckAlerts", stuckAlerts);
+  // Not old enough → skip
+  if (ageMs < SLA_MS) {
+    continue;
+  }
 
-  // We don't emit an alert immediately on handover
-  return null;
+  // Already alerted once → skip
+  if (stuckAlerts[id]) {
+    continue;
+  }
+
+  // Mark as alerted
+  stuckAlerts[id] = true;
+
+  const ageMinutes = Math.round(ageMs / 60000);
+
+  alertsToSend.push({
+    batchId: id,
+    lastHandoverAt: new Date(pending.atMs).toISOString(),
+    actorFacilityId:
+      pending.event.actor?.facilityId ||
+      pending.event.actorFacilityId ||
+      "UNKNOWN",
+    toFacilityId:
+      pending.event.to?.facilityId ||
+      pending.event.toFacilityId ||
+      "UNKNOWN",
+    status: "stuck",
+    reason: `No RECEIVE after HANDOVER within ${SLA_MINUTES} minutes`,
+    ageMinutes,
+    at: new Date().toISOString()
+  });
 }
 
-if (type === "_RECEIVE" || type === "RECEIVE") {
-  // Clear pending handover (shipment arrived)
-  delete handovers[batchId];
-  delete stuckAlerts[batchId];
-
-  global.set("handovers", handovers);
-  global.set("stuckAlerts", stuckAlerts);
-
-  return null;
-}
-
-// For other event types (e.g. DISPENSE), we check if anything is overdue
-const pending = handovers[batchId];
-if (!pending) {
-  return null;
-}
-
-const ageMs = now - pending.atMs;
-
-if (ageMs < SLA_MS) {
-  // Not yet overdue
-  return null;
-}
-
-// Already alerted once? avoid duplicates
-if (stuckAlerts[batchId]) {
-  return null;
-}
-
-// Mark as alerted
-stuckAlerts[batchId] = true;
+// Save updated state
+global.set("handovers", handovers);
 global.set("stuckAlerts", stuckAlerts);
 
-// Emit alert
-msg.payload = {
-  batchId,
-  lastHandoverAt: new Date(pending.atMs).toISOString(),
-  actorFacilityId: pending.event.actorFacilityId || "UNKNOWN",
-  toFacilityId:    pending.event.toFacilityId    || "UNKNOWN",
-  status:         "stuck",
-  reason:         `No RECEIVE after HANDOVER within ${SLA_MINUTES} minutes`,
-  ageMinutes:     Math.round(ageMs / 60000),
-  at:             new Date().toISOString(),
-};
+// If no alerts, swallow the message
+if (!alertsToSend.length) {
+  return null;
+}
 
-return msg;
+// For each alert, send a message to the mqtt out node
+alertsToSend.forEach(alert => {
+  node.send({ payload: alert });
+});
+
+// We have already sent messages via node.send, so return null
+return null;
 ```
 
 4) **MQTT OUT – `stuck-alerts-out`**
