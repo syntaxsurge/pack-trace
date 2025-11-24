@@ -201,8 +201,8 @@ Custody events insert into `supos_outbox` and are drained to `trace/events`. Tem
 - Use **Add New Path** to create:
   - `trace`
   - Under `trace`, create `alerts`
-  - Under `trace`, create `events`
   - Under `trace`, create `sensors`
+![supOS Namespace paths and folders](docs/images/supos-namespace.png)
 
 #### 3.2 Checkbox meanings
 - **Mock Data**: generates a pre-built Node-RED flow that publishes sample messages to this topic.
@@ -243,6 +243,7 @@ Rules for PackTrace:
     }
   }
   ```
+![supOS Namespace – trace/events topic](docs/images/supos-namespace-events.png)
 
 2) `trace/sensors/tempC` (temperature telemetry)
 - Right-click `trace/sensors` → **Create New Topic**.
@@ -251,6 +252,7 @@ Rules for PackTrace:
   ```json
   { "v": 1, "value": 8.6, "ts": "2025-10-30T15:36:05.120Z", "batchId": "88c551d1-f361-4c22-b293-bf6f7aa349ab" }
   ```
+![supOS Namespace – trace/sensors/tempC topic](docs/images/supos-namespace-tempc.png)
 
 3) `trace/alerts/coldchain`
 - Right-click `trace/alerts` → **Create New Topic**.
@@ -269,6 +271,7 @@ Rules for PackTrace:
     "detectedAt": "2025-10-30T15:31:00.000Z"
   }
   ```
+![supOS Namespace – trace/alerts/coldchain topic](docs/images/supos-namespace-coldchain.png)
 
 4) `trace/alerts/stuck`
 - Right-click `trace/alerts` → **Create New Topic**.
@@ -285,6 +288,7 @@ Rules for PackTrace:
     "detectedAt": "2025-10-30T15:49:29.950Z"
   }
   ```
+![supOS Namespace – trace/alerts/stuck topic](docs/images/supos-namespace-stuck.png)
 
 5) `trace/alerts/offline`
 - Right-click `trace/alerts` → **Create New Topic**.
@@ -301,6 +305,7 @@ Rules for PackTrace:
     "detectedAt": "2025-10-30T15:32:00.000Z"
   }
   ```
+![supOS Namespace – trace/alerts/offline topic](docs/images/supos-namespace-offline.png)
 
 #### 3.4 Bind data connections for History/Dashboards
 - After creating each modeled topic, open it in Namespace, go to **Topology Map**, and open **Data Connection**.
@@ -320,72 +325,101 @@ All flows use the supOS MQTT broker (host: your supOS IP, port: 1883).
   2) `function` → Name `Detect stuck shipments` (code below)
   3) `mqtt out` → Topic `trace/alerts/stuck`, QoS 1, Retain false, Name `stuck-alerts-out`
 - Wire in that order and deploy.
+![supOS Event Flow – stuck shipments](docs/images/supos-eventflow-stuck.png)
 
 Function code (Detect stuck shipments):
 ```js
 /**
- * Raise STUCK_SHIPMENT when a HANDOVER is not followed by RECEIVED/DISPENSED/RECALLED within SLA_MINUTES.
- * Input: msg.payload from trace/events (see Supabase trigger).
- * Output: one or more alerts to trace/alerts/stuck.
+ * Detect stuck shipments:
+ * - When we see a HANDOVER, remember it in global state.
+ * - When we see a matching RECEIVE, clear it.
+ * - When a HANDOVER has been pending longer than SLA minutes,
+ *   emit an alert once.
  */
-const SLA_MINUTES = 5;
-const event = msg.payload;
 
-if (typeof event !== "object" || event === null) {
-  return null;
-}
+const e = msg.payload || {};
 
-const batchId = event.batch && event.batch.id;
-if (!batchId || !event.type) {
-  return null;
-}
-
-const ts = Date.parse(event.ts || event.event?.createdAt || Date.now());
-const handovers = global.get("handovers") || {};
-const alerted = global.get("stuckAlerts") || {};
-
-if (event.type === "HANDOVER") {
-  handovers[batchId] = {
-    ts,
-    toFacilityId: event.to ? event.to.facilityId : null,
-  };
-}
-
-if (["RECEIVED", "DISPENSED", "RECALLED"].includes(event.type)) {
-  delete handovers[batchId];
-  delete alerted[batchId];
-}
-
-global.set("handovers", handovers);
-global.set("stuckAlerts", alerted);
+// CONFIG
+const SLA_MINUTES = 5;      // demo-friendly; real life might be 120+
+const SLA_MS = SLA_MINUTES * 60 * 1000;
 
 const now = Date.now();
-const alerts = [];
 
-Object.entries(handovers).forEach(([id, info]) => {
-  if (!info || typeof info.ts !== "number") return;
-  const ageMs = now - info.ts;
-  if (ageMs > SLA_MINUTES * 60_000 && !alerted[id]) {
-    alerted[id] = now;
-    alerts.push({
-      v: 1,
-      kind: "STUCK_SHIPMENT",
-      batchId: id,
-      toFacilityId: info.toFacilityId,
-      minutesOverdue: Math.round(ageMs / 60_000),
-      lastHandoverTs: new Date(info.ts).toISOString(),
-      detectedAt: new Date(now).toISOString(),
-    });
-  }
-});
+// Get state from global context
+let handovers    = global.get("handovers")    || {};  // batchId -> { atMs, event }
+let stuckAlerts  = global.get("stuckAlerts")  || {};  // batchId -> true
 
-global.set("stuckAlerts", alerted);
+const batchId = e.batchId || e.batchID || e.batch || null;
+const type    = (e.type || "").toUpperCase();
 
-if (!alerts.length) {
+if (!batchId || !type) {
+  // Not a custody event we care about
   return null;
 }
 
-return [alerts.map((payload) => ({ payload }))];
+if (type === "HANDOVER") {
+  // Record / update pending handover
+  const atMs = e.at ? Date.parse(e.at) : now;
+
+  handovers[batchId] = {
+    atMs,
+    event: e,
+  };
+
+  // Save back state
+  global.set("handovers", handovers);
+  global.set("stuckAlerts", stuckAlerts);
+
+  // We don't emit an alert immediately on handover
+  return null;
+}
+
+if (type === "_RECEIVE" || type === "RECEIVE") {
+  // Clear pending handover (shipment arrived)
+  delete handovers[batchId];
+  delete stuckAlerts[batchId];
+
+  global.set("handovers", handovers);
+  global.set("stuckAlerts", stuckAlerts);
+
+  return null;
+}
+
+// For other event types (e.g. DISPENSE), we check if anything is overdue
+const pending = handovers[batchId];
+if (!pending) {
+  return null;
+}
+
+const ageMs = now - pending.atMs;
+
+if (ageMs < SLA_MS) {
+  // Not yet overdue
+  return null;
+}
+
+// Already alerted once? avoid duplicates
+if (stuckAlerts[batchId]) {
+  return null;
+}
+
+// Mark as alerted
+stuckAlerts[batchId] = true;
+global.set("stuckAlerts", stuckAlerts);
+
+// Emit alert
+msg.payload = {
+  batchId,
+  lastHandoverAt: new Date(pending.atMs).toISOString(),
+  actorFacilityId: pending.event.actorFacilityId || "UNKNOWN",
+  toFacilityId:    pending.event.toFacilityId    || "UNKNOWN",
+  status:         "stuck",
+  reason:         `No RECEIVE after HANDOVER within ${SLA_MINUTES} minutes`,
+  ageMinutes:     Math.round(ageMs / 60000),
+  at:             new Date().toISOString(),
+};
+
+return msg;
 ```
 
 #### Flow B – `packtrace-coldchain` (temperature excursions)
@@ -395,48 +429,67 @@ return [alerts.map((payload) => ({ payload }))];
   2) `function` → Name `Detect cold-chain excursions` (code below)
   3) `mqtt out` → Topic `trace/alerts/coldchain`, QoS 1, Retain false, Name `coldchain-alerts-out`
 - Wire and deploy.
+![supOS Event Flow – cold-chain alerts](docs/images/supos-eventflow-coldchain.png)
 
 Function code (Detect cold-chain excursions):
 ```js
 /**
- * Emit COLDCHAIN_EXCURSION when tempC falls outside 2–8°C.
- * Works with supOS Mock Data or real telemetry.
+ * Cold-chain alert generator
+ *
+ * Input: msg.payload from trace/sensors/tempC, e.g.:
+ * {
+ *   facilityId: "FAC-123",
+ *   sensorId:   "SEN-1",
+ *   value:      94.9,            // mock temperature in °C
+ *   at:         "2025-11-23T12:34:56Z"
+ * }
+ *
+ * Output (only when out-of-range):
+ * {
+ *   facilityId,
+ *   sensorId,
+ *   tempC,
+ *   at,
+ *   status: "out_of_range",
+ *   reason: "too_hot" | "too_cold",
+ *   min: <number>,
+ *   max: <number>
+ * }
  */
-const SAFE_MIN = 2;
-const SAFE_MAX = 8;
-const reading = msg.payload;
 
-if (typeof reading !== "object" || reading === null) {
+const p = msg.payload || {};
+
+// *** adjust this line if your temp field is different ***
+// For supOS mock data it's usually "value" or "v".
+const temp = typeof p.value === "number" ? p.value : Number(p.value);
+
+// If we still don't have a valid number, drop the message
+if (!Number.isFinite(temp)) {
   return null;
 }
 
-const value = Number(reading.value ?? reading.tempC ?? reading.temperature);
-if (Number.isNaN(value)) {
+// Define safe range (example 2–8°C)
+const MIN = 2;
+const MAX = 8;
+
+// Inside the safe band → no alert
+if (temp >= MIN && temp <= MAX) {
   return null;
 }
 
-if (value >= SAFE_MIN && value <= SAFE_MAX) {
-  return null;
-}
+// Build alert payload
+msg.payload = {
+  facilityId: p.facilityId || "UNKNOWN",
+  sensorId: p.sensorId || "UNKNOWN",
+  tempC: temp,
+  at: p.at || new Date().toISOString(),
+  status: "out_of_range",
+  reason: temp < MIN ? "too_cold" : "too_hot",
+  min: MIN,
+  max: MAX,
+};
 
-const ts = reading.ts || new Date().toISOString();
-
-return [
-  {
-    payload: {
-      v: 1,
-      kind: "COLDCHAIN_EXCURSION",
-      status: value < SAFE_MIN ? "TOO_COLD" : "TOO_HOT",
-      value,
-      unit: reading.unit || "C",
-      safeRange: { min: SAFE_MIN, max: SAFE_MAX },
-      sample: { ts, value },
-      batchId: reading.batchId || null,
-      deviceId: reading.deviceId || null,
-      detectedAt: ts,
-    },
-  },
-];
+return msg;
 ```
 
 #### Flow C – `packtrace-offline` (sensor/facility offline)
@@ -444,71 +497,101 @@ return [
 - Nodes and wiring:
   - Branch 1: `mqtt in` (Topic `trace/sensors/tempC`, QoS 1, Name `tempC-in`) → `function` (Name `Update last seen`).
   - Branch 2: `inject` (Name `Check offline every minute`, interval 60 seconds) → `function` (Name `Detect offline facilities`) → `mqtt out` (Topic `trace/alerts/offline`, QoS 1, Retain false, Name `offline-alerts-out`).
+![supOS Event Flow – offline sensors](docs/images/supos-eventflow-offline.png)
 
 Function code (Update last seen):
 ```js
 /**
- * Track last-seen timestamp for each telemetry source.
+ * Update last-seen timestamp per facility (and optionally per sensor)
+ * whenever we get a tempC reading.
  */
-const reading = msg.payload;
-if (typeof reading !== "object" || reading === null) {
-  return null;
+
+const p = msg.payload || {};
+
+const facilityId = p.facilityId || "UNKNOWN";
+const sensorId   = p.sensorId   || "UNKNOWN";
+
+const now = Date.now();
+
+// Map facilityId -> { sensorId -> lastSeenMs }
+let lastSeen = global.get("lastSeen") || {};
+
+if (!lastSeen[facilityId]) {
+  lastSeen[facilityId] = {};
 }
 
-const id = reading.deviceId || reading.facilityId || reading.batchId || "unknown-source";
-const ts = Date.parse(reading.ts || Date.now());
+lastSeen[facilityId][sensorId] = now;
 
-const lastSeen = global.get("lastSeen") || {};
-lastSeen[id] = ts;
 global.set("lastSeen", lastSeen);
 
+// No output needed for this flow
 return null;
 ```
 
 Function code (Detect offline facilities):
 ```js
 /**
- * Emit SENSOR_OFFLINE when no tempC message arrives within OFFLINE_MINUTES.
- * Triggered by the inject node every minute.
+ * Periodic offline detection.
+ * Runs every minute from the inject node.
+ *
+ * Reads lastSeen map from global context and emits an alert
+ * if a facility/sensor has been quiet for more than OFFLINE_MINUTES.
  */
-const OFFLINE_MINUTES = 10;
-const OFFLINE_MS = OFFLINE_MINUTES * 60_000;
+
+const OFFLINE_MINUTES = 10;          // for demo; tweak as needed
+const OFFLINE_MS = OFFLINE_MINUTES * 60 * 1000;
+
 const now = Date.now();
 
-const lastSeen = global.get("lastSeen") || {};
-const muted = global.get("offlineMuted") || {};
+let lastSeen     = global.get("lastSeen")     || {};
+let offlineState = global.get("offlineState") || {}; // facilityId:sensorId -> true
 
-const alerts = [];
+let alerts = [];
 
-Object.entries(lastSeen).forEach(([id, ts]) => {
-  if (!ts) return;
-  const age = now - ts;
+// Iterate over facilities and sensors
+for (const facilityId of Object.keys(lastSeen)) {
+  const sensors = lastSeen[facilityId];
 
-  if (age > OFFLINE_MS && !muted[id]) {
-    muted[id] = now;
-    alerts.push({
-      v: 1,
-      kind: "SENSOR_OFFLINE",
-      deviceId: id,
-      lastSeen: new Date(ts).toISOString(),
-      minutesOffline: Math.round(age / 60_000),
-      thresholdMinutes: OFFLINE_MINUTES,
-      detectedAt: new Date(now).toISOString(),
-    });
+  for (const sensorId of Object.keys(sensors)) {
+    const last = sensors[sensorId] || 0;
+    const ageMs = now - last;
+    const key = `${facilityId}:${sensorId}`;
+
+    const isOffline = ageMs > OFFLINE_MS;
+
+    if (isOffline && !offlineState[key]) {
+      // Just transitioned to offline → emit alert
+      offlineState[key] = true;
+
+      alerts.push({
+        facilityId,
+        sensorId,
+        status: "offline",
+        reason: `No tempC data for more than ${OFFLINE_MINUTES} minutes`,
+        lastSeenAt: new Date(last).toISOString(),
+        at: new Date().toISOString(),
+        ageMinutes: Math.round(ageMs / 60000),
+      });
+    }
+
+    if (!isOffline && offlineState[key]) {
+      // Came back online → clear state (no alert for now, but could add "recovered" later)
+      delete offlineState[key];
+    }
   }
+}
 
-  if (age <= OFFLINE_MS && muted[id]) {
-    delete muted[id];
-  }
-});
-
-global.set("offlineMuted", muted);
+global.set("offlineState", offlineState);
 
 if (!alerts.length) {
   return null;
 }
 
-return [alerts.map((payload) => ({ payload }))];
+// For simplicity, emit one message per alert
+// You could also bundle them into an array if you prefer.
+
+const msgs = alerts.map(a => ({ payload: a }));
+return [msgs];
 ```
 
 ### 5) Dashboards and validation
@@ -518,14 +601,8 @@ return [alerts.map((payload) => ({ payload }))];
   - With Mock Data on `trace/sensors/tempC`, you should immediately see tempC lines and cold-chain alerts once the flow is deployed.
   - Use the app to trigger a HANDOVER without RECEIVED to generate `trace/alerts/stuck`.
   - Stop telemetry (or disable Mock Data) to observe `trace/alerts/offline` after roughly 10 minutes.
-
-Screenshots:
-- Namespace view with topics: `![supOS Namespace – PackTrace topics](docs/images/supos-namespace.png)`
-- Event Flow – stuck shipments: `![supOS Event Flow – stuck shipments](docs/images/supos-eventflow-stuck.png)`
-- Event Flow – cold-chain alerts: `![supOS Event Flow – cold-chain alerts](docs/images/supos-eventflow-coldchain.png)`
-- Event Flow – offline sensors: `![supOS Event Flow – offline sensors](docs/images/supos-eventflow-offline.png)`
-- Dashboard – custody & temperature: `![supOS Dashboard – custody & temperature](docs/images/supos-dashboard-tempC.png)`
-- Dashboard – alerts (stuck / coldchain / offline): `![supOS Dashboard – alerts](docs/images/supos-dashboard-alerts.png)`
+![supOS Dashboard – temperature](docs/images/supos-dashboard-tempC.png)
+![supOS Dashboard - cold-chain)](docs/images/supos-dashboard-cold-chain.png)
 
 ### 6) How this meets supOS' ask
 - Real data path: PackTrace publishes custody events via the Supabase trigger → `supos_outbox` → `pnpm worker:supos` → MQTT `trace/events` → supOS History/Dashboards.
