@@ -349,35 +349,53 @@ Home → Event Flow → + New Event Flow → Name `packtrace-stuck`, Template `n
 - On Message:
 ```js
 /**
- * Track HANDOVER and RECEIVE events in global state.
- * Does not emit alerts.
+ * Track all HANDOVER and RECEIVE events in global state.
+ * Does NOT emit alerts. Just keeps handovers and stuckAlerts up to date.
  */
+
 const e = msg.payload || {};
 
-// keep SLA handy so both functions share the same threshold
-const SLA_MINUTES = 1; // demo-friendly; raise for production
+// how long before we call a shipment "stuck" (still used by checker)
+const SLA_MINUTES = 1;
+const SLA_MS = SLA_MINUTES * 60 * 1000;
+
 const now = Date.now();
 
+// Load state from global context
 let handovers   = global.get("handovers")   || {};  // batchId -> { atMs, event }
 let stuckAlerts = global.get("stuckAlerts") || {};  // batchId -> true
 
-const batchId = e.batchId || (e.batch && e.batch.id) || null;
+// Try to read batch id and type from the event
+const batchId =
+  e.batchId ||
+  (e.batch && e.batch.id) ||
+  null;
+
 const type = (e.type || "").toUpperCase();
 
+// If this message is a "normal" custody event, update state
 if (batchId && type) {
   if (type === "HANDOVER") {
+    // Use the event timestamp if provided, else "now"
     const atMs = e.ts ? Date.parse(e.ts) : (e.at ? Date.parse(e.at) : now);
-    handovers[batchId] = { atMs, event: e };
+
+    handovers[batchId] = {
+      atMs,
+      event: e
+    };
   }
 
-  if (type === "RECEIVE" || type === "RECEIVED" || type === "DISPENSED" || type === "RECALLED") {
+  if (type === "RECEIVE" || type === "RECEIVED") {
+    // Shipment arrived — clear any pending handover and alert flag
     delete handovers[batchId];
     delete stuckAlerts[batchId];
   }
 }
 
+// Save updated state, but do NOT emit alerts here
 global.set("handovers", handovers);
 global.set("stuckAlerts", stuckAlerts);
+
 return null;
 ```
 - Wire: `trace-events-in` → `Track handovers` (no MQTT out from this node).
@@ -393,25 +411,36 @@ return null;
 - On Message:
 ```js
 /**
- * Periodically check all pending handovers and emit stuck alerts
- * if they exceed the SLA.
+ * Periodically check all pending handovers and emit stuck alerts if any
+ * have exceeded the SLA.
  */
-const SLA_MINUTES = 1; // keep in sync with Track handovers
+
+const SLA_MINUTES = 1;                // match Track handovers
 const SLA_MS = SLA_MINUTES * 60 * 1000;
+
 const now = Date.now();
 
+// Load state
 let handovers   = global.get("handovers")   || {};
 let stuckAlerts = global.get("stuckAlerts") || {};
 
 const alertsToSend = [];
 
+// Scan all pending handovers
 for (const id of Object.keys(handovers)) {
   const pending = handovers[id];
   const ageMs = now - pending.atMs;
-  if (ageMs < SLA_MS) continue;
-  if (stuckAlerts[id]) continue;
+
+  if (ageMs < SLA_MS) {
+    continue; // not old enough
+  }
+
+  if (stuckAlerts[id]) {
+    continue; // already alerted
+  }
 
   stuckAlerts[id] = true;
+
   const ageMinutes = Math.round(ageMs / 60000);
 
   alertsToSend.push({
@@ -428,15 +457,24 @@ for (const id of Object.keys(handovers)) {
     status: "stuck",
     reason: `No RECEIVE after HANDOVER within ${SLA_MINUTES} minutes`,
     ageMinutes,
-    at: new Date().toISOString(),
+    at: new Date().toISOString()
   });
 }
 
+// Save updated alert state
 global.set("stuckAlerts", stuckAlerts);
 
-if (!alertsToSend.length) return null;
+// If there are no alerts, do nothing
+if (!alertsToSend.length) {
+  return null;
+}
 
-alertsToSend.forEach((alert) => node.send({ payload: alert }));
+// Emit one message per alert
+alertsToSend.forEach(alert => {
+  node.send({ payload: alert });
+});
+
+// Return null (we already sent individual messages)
 return null;
 ```
 
