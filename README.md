@@ -313,21 +313,38 @@ Rules for PackTrace:
 
 ### 4) Event Flow (Node-RED) – logic and automation
 
-All flows use the supOS MQTT broker (host: your supOS IP, port: 1883).
-- MQTT in: Topic as listed, QoS 1, Output = auto-detect JSON.
-- MQTT out: Topic as listed, QoS 1, Retain false. Set topics on MQTT out nodes; function nodes only build `msg.payload`.
-- Function language: JavaScript (paste into On Message).
+All flows run in supOS **Event Flow (Node-RED)**, subscribe to PackTrace topics, execute JavaScript, and publish alerts back to supOS.
 
-#### Flow A – `packtrace-stuck` (handover without receipt)
-- New Event Flow named `packtrace-stuck` (template: node-red).
-- Nodes left → right:
-  1) `mqtt in` → Topic `trace/events`, Name `trace-events-in`
-  2) `function` → Name `Detect stuck shipments` (code below)
-  3) `mqtt out` → Topic `trace/alerts/stuck`, QoS 1, Retain false, Name `stuck-alerts-out`
-- Wire in that order and deploy.
-![supOS Event Flow – stuck shipments](docs/images/supos-eventflow-stuck.png)
+#### 4.0 MQTT defaults (use these for every MQTT node)
+- **Server:** `mqtt://192.168.1.4:1883` (swap the IP to your supOS host). In the node dialog, click the pencil, set Server to that URL, leave Client ID blank, and leave Username/Password blank unless you secured the broker.
+- **QoS:** `1`
+- **MQTT IN → Output:** `auto-detect (parsed JSON object, string or buffer)`
+- **MQTT OUT → Retain:** `false`
+- All other fields/tabs: defaults.
 
-Function code (Detect stuck shipments):
+Topics live on the MQTT OUT nodes; function nodes only set `msg.payload`.
+
+---
+
+#### 4.1 Flow A – `packtrace-stuck` (handover without receipt)
+
+Detects when a HANDOVER is not followed by RECEIVED/DISPENSED/RECALLED within an SLA window.
+
+1) **Create the flow**  
+Home → Event Flow → + New Event Flow → Name `packtrace-stuck`, Template `node-red`, Description `Detect stuck shipments from PackTrace custody events`, Save, open.
+
+2) **MQTT IN – `trace-events-in`**
+- Action: Subscribe to single topic
+- Topic: `trace/events`
+- QoS: `1`
+- Output: auto-detect (parsed JSON object, string or buffer)
+- Name: `trace-events-in`
+- Server: `mqtt://192.168.1.4:1883`
+
+3) **Function – `Detect stuck shipments`**
+- Name: `Detect stuck shipments`
+- Setup/Start/Stop tabs: empty
+- On Message:
 ```js
 /**
  * Detect stuck shipments:
@@ -422,16 +439,36 @@ msg.payload = {
 return msg;
 ```
 
-#### Flow B – `packtrace-coldchain` (temperature excursions)
-- New Event Flow named `packtrace-coldchain`.
-- Nodes:
-  1) `mqtt in` → Topic `trace/sensors/tempC`, QoS 1, Name `tempC-in`
-  2) `function` → Name `Detect cold-chain excursions` (code below)
-  3) `mqtt out` → Topic `trace/alerts/coldchain`, QoS 1, Retain false, Name `coldchain-alerts-out`
-- Wire and deploy.
-![supOS Event Flow – cold-chain alerts](docs/images/supos-eventflow-coldchain.png)
+4) **MQTT OUT – `stuck-alerts-out`**
+- Topic: `trace/alerts/stuck`
+- QoS: `1`
+- Retain: `false`
+- Name: `stuck-alerts-out`
+- Server: `mqtt://192.168.1.4:1883`
 
-Function code (Detect cold-chain excursions):
+5) **Wire and deploy**  
+Wire `trace-events-in` → `Detect stuck shipments` → `stuck-alerts-out`. Click **Deploy**.  
+![supOS Event Flow – stuck shipments](docs/images/supos-eventflow-stuck.png)
+
+---
+
+#### 4.2 Flow B – `packtrace-coldchain` (temperature excursions)
+
+Raises `trace/alerts/coldchain` when temperature leaves 2–8°C.
+
+1) **Create the flow**  
+Name `packtrace-coldchain`, Template `node-red`, Description `Generate cold-chain alerts from tempC readings`.
+
+2) **MQTT IN – `tempC-in`**
+- Topic: `trace/sensors/tempC`
+- QoS: `1`
+- Output: auto-detect (parsed JSON object, string or buffer)
+- Name: `tempC-in`
+- Server: `mqtt://192.168.1.4:1883`
+
+3) **Function – `Detect cold-chain excursions`**
+- Name: `Detect cold-chain excursions`
+- On Message:
 ```js
 /**
  * Cold-chain alert generator
@@ -492,14 +529,36 @@ msg.payload = {
 return msg;
 ```
 
-#### Flow C – `packtrace-offline` (sensor/facility offline)
-- New Event Flow named `packtrace-offline`.
-- Nodes and wiring:
-  - Branch 1: `mqtt in` (Topic `trace/sensors/tempC`, QoS 1, Name `tempC-in`) → `function` (Name `Update last seen`).
-  - Branch 2: `inject` (Name `Check offline every minute`, interval 60 seconds) → `function` (Name `Detect offline facilities`) → `mqtt out` (Topic `trace/alerts/offline`, QoS 1, Retain false, Name `offline-alerts-out`).
-![supOS Event Flow – offline sensors](docs/images/supos-eventflow-offline.png)
+4) **MQTT OUT – `coldchain-alerts-out`**
+- Topic: `trace/alerts/coldchain`
+- QoS: `1`
+- Retain: `false`
+- Name: `coldchain-alerts-out`
+- Server: `mqtt://192.168.1.4:1883`
 
-Function code (Update last seen):
+5) **Wire and deploy**  
+Wire `tempC-in` → `Detect cold-chain excursions` → `coldchain-alerts-out`. Deploy.  
+![supOS Event Flow – cold-chain alerts](docs/images/supos-eventflow-coldchain.png)
+
+---
+
+#### 4.3 Flow C – `packtrace-offline` (sensor/facility offline)
+
+Raises `trace/alerts/offline` when a sensor stops sending `tempC` for longer than the threshold.
+
+1) **Create the flow**  
+Name `packtrace-offline`, Template `node-red`, Description `Detect facilities that stop sending sensor data and raise offline alerts`.
+
+2) **Branch 1 – track last seen**
+- **MQTT IN – `tempC-in`**
+  - Topic: `trace/sensors/tempC`
+  - QoS: `1`
+  - Output: auto-detect (parsed JSON object, string or buffer)
+  - Name: `tempC-in`
+  - Server: `mqtt://192.168.1.4:1883`
+- **Function – `Update last seen`**
+  - Name: `Update last seen`
+  - On Message:
 ```js
 /**
  * Update last-seen timestamp per facility (and optionally per sensor)
@@ -527,8 +586,16 @@ global.set("lastSeen", lastSeen);
 // No output needed for this flow
 return null;
 ```
+- Wire `tempC-in` → `Update last seen`.
 
-Function code (Detect offline facilities):
+3) **Branch 2 – periodic offline check**
+- **Inject – `Check offline every minute`**
+  - Name: `Check offline every minute`
+  - Payload: timestamp (default)
+  - Repeat: interval every `60` seconds
+- **Function – `Detect offline facilities`**
+  - Name: `Detect offline facilities`
+  - On Message:
 ```js
 /**
  * Periodic offline detection.
@@ -593,6 +660,17 @@ if (!alerts.length) {
 const msgs = alerts.map(a => ({ payload: a }));
 return [msgs];
 ```
+- **MQTT OUT – `offline-alerts-out`**
+  - Topic: `trace/alerts/offline`
+  - QoS: `1`
+  - Retain: `false`
+  - Name: `offline-alerts-out`
+  - Server: `mqtt://192.168.1.4:1883`
+- Wire `Check offline every minute` → `Detect offline facilities` → `offline-alerts-out`.
+
+4) **Deploy**  
+Click **Deploy**. Stop tempC mock data temporarily to see `trace/alerts/offline` after the threshold.  
+![supOS Event Flow – offline sensors](docs/images/supos-eventflow-offline.png)
 
 ### 5) Dashboards and validation
 - Because **Generate Dashboard** and **Enable History** are ON for every topic, supOS auto-creates Grafana views for custody, telemetry, and alerts.
@@ -602,7 +680,7 @@ return [msgs];
   - Use the app to trigger a HANDOVER without RECEIVED to generate `trace/alerts/stuck`.
   - Stop telemetry (or disable Mock Data) to observe `trace/alerts/offline` after roughly 10 minutes.
 ![supOS Dashboard – temperature](docs/images/supos-dashboard-tempC.png)
-![supOS Dashboard - cold-chain)](docs/images/supos-dashboard-cold-chain.png)
+![supOS Dashboard – cold-chain](docs/images/supos-dashboard-cold-chain.png)
 
 ### 6) How this meets supOS' ask
 - Real data path: PackTrace publishes custody events via the Supabase trigger → `supos_outbox` → `pnpm worker:supos` → MQTT `trace/events` → supOS History/Dashboards.
