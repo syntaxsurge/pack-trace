@@ -9,8 +9,7 @@
     "db:push": "tsx -r dotenv/config scripts/db-push.ts",
     "db:reset": "tsx -r dotenv/config scripts/db-reset.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
-    "worker:supos": "tsx -r dotenv/config scripts/supos-bridge-worker.ts",
-    "sim:temp": "tsx -r dotenv/config scripts/sensor-temp-sim.ts"
+    "worker:supos": "tsx -r dotenv/config scripts/supos-bridge-worker.ts"
   },
   "dependencies": {
     "@hashgraph/sdk": "^2.54.0",

@@ -102,7 +102,6 @@ This script covers the full 7–8 minute cut: custody on Hedera, live ops in sup
 
 - Start worker: `pnpm worker:supos`
 - Start app: `pnpm dev`
-- Temperature simulator (demo): `pnpm sim:temp -- <batchId>` (publishes to `trace/sensors/tempC`)
 - AI test (manual):
   ```bash
   curl -s -X POST http://localhost:3000/api/ai/summarize-coldchain \

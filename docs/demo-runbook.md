@@ -15,7 +15,7 @@ End-to-end script for the 10-minute hackathon recording. Follow this checklist t
 - Pin two tabs for cut-ins:
   - Namespace view with the modeled topics (`trace/batches/{batchId}/events`, `trace/batches/{batchId}/sensors/tempC`, `trace/batches/{batchId}/alerts/coldchain`).
   - Dashboards view with the `Traceability Live` board (custody table, temperature chart, cold-chain alerts).
-- Run `pnpm worker:supos` to drain the outbox and `pnpm sim:temp <batchId>` for the synthetic temperature stream.
+- Run `pnpm worker:supos` to drain the outbox; supOS Mock Data on `trace/sensors/tempC` drives the temperature stream.
 
 ### Label Printing and Scanning
 - Print GS1 labels at 100 percent scale with a quiet zone at least one module wide on each edge.

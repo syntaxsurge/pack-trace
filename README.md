@@ -192,7 +192,7 @@ Then:
 - Start the supOS outbox worker to publish custody events to MQTT with QoS 1 retries: `pnpm worker:supos`
 - Run the app: `pnpm dev`
 
-Custody events insert into `supos_outbox` and are drained to `trace/events`. Temperature telemetry can be produced by supOS Mock Data or by `pnpm sim:temp -- 88c551d1-f361-4c22-b293-bf6f7aa349ab` (replace with your batch ID).
+Custody events insert into `supos_outbox` and are drained to `trace/events`. Temperature telemetry comes from supOS Mock Data on `trace/sensors/tempC` or from real devices publishing to that topic.
 
 ### 3) Build the Namespace: paths, topics, and checkbox rules
 
@@ -519,6 +519,14 @@ return [alerts.map((payload) => ({ payload }))];
   - Use the app to trigger a HANDOVER without RECEIVED to generate `trace/alerts/stuck`.
   - Stop telemetry (or disable Mock Data) to observe `trace/alerts/offline` after roughly 10 minutes.
 
+Screenshots:
+- Namespace view with topics: `![supOS Namespace – PackTrace topics](docs/images/supos-namespace.png)`
+- Event Flow – stuck shipments: `![supOS Event Flow – stuck shipments](docs/images/supos-eventflow-stuck.png)`
+- Event Flow – cold-chain alerts: `![supOS Event Flow – cold-chain alerts](docs/images/supos-eventflow-coldchain.png)`
+- Event Flow – offline sensors: `![supOS Event Flow – offline sensors](docs/images/supos-eventflow-offline.png)`
+- Dashboard – custody & temperature: `![supOS Dashboard – custody & temperature](docs/images/supos-dashboard-tempC.png)`
+- Dashboard – alerts (stuck / coldchain / offline): `![supOS Dashboard – alerts](docs/images/supos-dashboard-alerts.png)`
+
 ### 6) How this meets supOS' ask
 - Real data path: PackTrace publishes custody events via the Supabase trigger → `supos_outbox` → `pnpm worker:supos` → MQTT `trace/events` → supOS History/Dashboards.
 - Event Flow automation: Node-RED flows convert raw custody and telemetry into `trace/alerts/stuck`, `trace/alerts/coldchain`, and `trace/alerts/offline` with QoS 1 / Retain false on every MQTT out node.
@@ -590,4 +598,3 @@ Runtime env values (where to find them):
 - `npm run typecheck` – TypeScript without emit (required before merging).
 - `npm run seed:demo` – provision demo facilities, accounts, batches, events, and receipts in Supabase (requires service role key).
 - `npm run worker:supos` – drain the Supabase `supos_outbox` table and publish each record to the supOS MQTT broker with QoS 1 retries.
-- `npm run sim:temp -- 88c551d1-f361-4c22-b293-bf6f7aa349ab` – stream synthetic temperature telemetry to `trace/sensors/tempC` for dashboards and alert testing (swap in your batch ID; it is only used for logging).
