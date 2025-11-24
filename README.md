@@ -330,7 +330,7 @@ Topics live on the MQTT OUT nodes; function nodes only set `msg.payload`.
 
 #### 4.1 Flow A – `packtrace-stuck` (handover without receipt)
 
-Detects when a HANDOVER is not followed by RECEIVED/DISPENSED/RECALLED within an SLA window.
+Detects stuck handovers even when no new custody events arrive by separating state tracking and periodic checks.
 
 1) **Create the flow**  
 Home → Event Flow → + New Event Flow → Name `packtrace-stuck`, Template `node-red`, Description `Detect stuck shipments from PackTrace custody events`, Save, open.
@@ -343,81 +343,75 @@ Home → Event Flow → + New Event Flow → Name `packtrace-stuck`, Template `n
 - Name: `trace-events-in`
 - Server: `mqtt://192.168.1.4:1883`
 
-3) **Function – `Detect stuck shipments`**
-- Name: `Detect stuck shipments`
-- Setup/Start/Stop tabs: empty
+3) **Function – `Track handovers`** (updates state only)
+- Name: `Track handovers`
+- Setup/Start/Stop: empty
 - On Message:
 ```js
 /**
- * Detect stuck shipments:
- * - Track all HANDOVER events in global state.
- * - Clear them when we see a matching RECEIVE.
- * - On each run, check ALL pending handovers and emit alerts
- *   if they have been pending longer than SLA minutes.
+ * Track HANDOVER and RECEIVE events in global state.
+ * Does not emit alerts.
  */
-
 const e = msg.payload || {};
 
-// CONFIG: how long before we call a shipment "stuck"
-const SLA_MINUTES = 1;      // demo-friendly; real deployments: e.g. 120+
-const SLA_MS = SLA_MINUTES * 60 * 1000;
-
+// keep SLA handy so both functions share the same threshold
+const SLA_MINUTES = 1; // demo-friendly; raise for production
 const now = Date.now();
 
-// Load state from global context
 let handovers   = global.get("handovers")   || {};  // batchId -> { atMs, event }
 let stuckAlerts = global.get("stuckAlerts") || {};  // batchId -> true
 
-// Try to read batch id and type from the event
-// NOTE: for PackTrace events, batch.id is the canonical id
-const batchId =
-  e.batchId ||
-  (e.batch && e.batch.id) ||
-  null;
-
+const batchId = e.batchId || (e.batch && e.batch.id) || null;
 const type = (e.type || "").toUpperCase();
 
-// If this message is a "normal" custody event, update state
 if (batchId && type) {
   if (type === "HANDOVER") {
-    // Use the event timestamp if provided, else "now"
     const atMs = e.ts ? Date.parse(e.ts) : (e.at ? Date.parse(e.at) : now);
-
-    handovers[batchId] = {
-      atMs,
-      event: e
-    };
-
-    // No alert yet — we just start the clock
+    handovers[batchId] = { atMs, event: e };
   }
 
-  if (type === "RECEIVE" || type === "RECEIVED") {
-    // Shipment arrived — clear any pending handover and alert flag
+  if (type === "RECEIVE" || type === "RECEIVED" || type === "DISPENSED" || type === "RECALLED") {
     delete handovers[batchId];
     delete stuckAlerts[batchId];
   }
 }
 
-// Now scan ALL pending handovers to see if any are overdue
+global.set("handovers", handovers);
+global.set("stuckAlerts", stuckAlerts);
+return null;
+```
+- Wire: `trace-events-in` → `Track handovers` (no MQTT out from this node).
+
+4) **Inject – `Check stuck every minute`**
+- Payload: timestamp (default)
+- Topic: blank
+- Repeat: interval every `60` seconds (use `10` seconds for demo if desired)
+- Name: `Check stuck every minute`
+
+5) **Function – `Check stuck handovers`** (scans state and emits alerts)
+- Name: `Check stuck handovers`
+- On Message:
+```js
+/**
+ * Periodically check all pending handovers and emit stuck alerts
+ * if they exceed the SLA.
+ */
+const SLA_MINUTES = 1; // keep in sync with Track handovers
+const SLA_MS = SLA_MINUTES * 60 * 1000;
+const now = Date.now();
+
+let handovers   = global.get("handovers")   || {};
+let stuckAlerts = global.get("stuckAlerts") || {};
+
 const alertsToSend = [];
 
 for (const id of Object.keys(handovers)) {
   const pending = handovers[id];
   const ageMs = now - pending.atMs;
+  if (ageMs < SLA_MS) continue;
+  if (stuckAlerts[id]) continue;
 
-  // Not old enough → skip
-  if (ageMs < SLA_MS) {
-    continue;
-  }
-
-  // Already alerted once → skip
-  if (stuckAlerts[id]) {
-    continue;
-  }
-
-  // Mark as alerted
   stuckAlerts[id] = true;
-
   const ageMinutes = Math.round(ageMs / 60000);
 
   alertsToSend.push({
@@ -434,37 +428,33 @@ for (const id of Object.keys(handovers)) {
     status: "stuck",
     reason: `No RECEIVE after HANDOVER within ${SLA_MINUTES} minutes`,
     ageMinutes,
-    at: new Date().toISOString()
+    at: new Date().toISOString(),
   });
 }
 
-// Save updated state
-global.set("handovers", handovers);
 global.set("stuckAlerts", stuckAlerts);
 
-// If no alerts, swallow the message
-if (!alertsToSend.length) {
-  return null;
-}
+if (!alertsToSend.length) return null;
 
-// For each alert, send a message to the mqtt out node
-alertsToSend.forEach(alert => {
-  node.send({ payload: alert });
-});
-
-// We have already sent messages via node.send, so return null
+alertsToSend.forEach((alert) => node.send({ payload: alert }));
 return null;
 ```
 
-4) **MQTT OUT – `stuck-alerts-out`**
+6) **MQTT OUT – `stuck-alerts-out`**
 - Topic: `trace/alerts/stuck`
 - QoS: `1`
 - Retain: `false`
 - Name: `stuck-alerts-out`
 - Server: `mqtt://192.168.1.4:1883`
 
-5) **Wire and deploy**  
-Wire `trace-events-in` → `Detect stuck shipments` → `stuck-alerts-out`. Click **Deploy**.  
+7) **Wire and deploy**  
+Wiring should be:
+```
+[mqtt in: trace-events-in] → [Track handovers]
+
+[inject: Check stuck every minute] → [Check stuck handovers] → [mqtt out: stuck-alerts-out]
+```
+Click **Deploy**.  
 ![supOS Event Flow – stuck shipments](docs/images/supos-eventflow-stuck.png)
 
 ---
