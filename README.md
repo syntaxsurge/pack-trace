@@ -13,7 +13,8 @@
 | Resource | Link |
 | --- | --- |
 | Live Website | https://pack-trace.vercel.app/ |
-| Pitch Deck | [Canva](https://www.canva.com/design/DAG3XwUtWbQ/gQ-hhHi7xIjtI0EyhLazyg/edit?utm_content=DAG3XwUtWbQ&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) · [Google Drive Mirror](https://drive.google.com/drive/folders/1xiQ2o2nWuqSYNdpxwtfE9ETKPYKaphr7?usp=sharing) |
+| Pitch Deck | [Canva](https://www.canva.com/design/DAG3XwUtWbQ/gQ-hhHi7xIjtI0EyhLazyg/edit?utm_content=DAG3XwUtWbQ&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) |
+| Pitch Deck (Detailed Roadmap) | [Canva](https://www.canva.com/design/DAG6WEzcGDE/-23llBmHgdcLuoOQb5hjzw/edit?utm_content=DAG6WEzcGDE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton) |
 | YouTube Video Demo | https://www.youtube.com/watch?v=hJAu5NF_61I |
 | Hashgraph Developer Course Certificate | https://drive.google.com/file/d/10fQnK3CINl5sH9a2s4m0pUzO2I9Lo_QH/view?usp=sharing |
 | NodeOps Template URL (For easy deployment) | https://cloud.nodeops.network/marketplace/d42cgfkc6prc7390ivcg |
